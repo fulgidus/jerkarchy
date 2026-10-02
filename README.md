@@ -1,12 +1,15 @@
-# anarchy
+# jerkarchy
 
-**Ugly, boring & un-funded Linux.**
-*The immalleable dotfiles for the age of not being sponsored by billionaires.*
+**Twelve men. One distro. Everyone finishes.**
+
+*Ugly, boring & un-funded Linux.*
+
+The immalleable dotfiles for the age of not being sponsored by billionaires.
 
 > When you can vibe code whatever app comes to your mind, you should be able
 > to vibe code your operating system. So we did. In one evening. For $0.
 
-anarchy is an opinionated desktop setup for Arch-based systems, built on
+jerkarchy is an opinionated desktop setup for Arch-based systems, built on
 **sway**. It is a deliberately lazy, half-assed, obvious rip-off of
 [Omarchy](https://omarchy.org/), made to answer one question:
 
@@ -15,7 +18,7 @@ anarchy is an opinionated desktop setup for Arch-based systems, built on
 ## Install
 
 ```sh
-curl -fsSL https://git.fulgid.us/fulgidus/anarchy/raw/branch/main/install.sh | bash
+curl -fsSL https://git.fulgid.us/fulgidus/jerkarchy/raw/branch/main/install.sh | bash
 ```
 
 That's it. That's the product. It installs some packages, runs
@@ -25,9 +28,9 @@ foundation, no patrons. Read the script first — it's short on purpose.
 ## Features
 
 Omarchy, per its own homepage, gives you a tiling WM, AI integration,
-themes, a dev stack and a nice installer. anarchy gives you:
+themes, a dev stack and a nice installer. jerkarchy gives you:
 
-| | Omarchy | anarchy |
+| | Omarchy | jerkarchy |
 |---|---|---|
 | Tiling window manager | Hyprland | sway (oldest, most boring, most stable) |
 | Hyprland-style splitting | yes | yes ([autotiling](https://github.com/nwg-piotr/autotiling)) |
@@ -73,7 +76,7 @@ entries and their sources, and decide for yourself.
   moat. Anyone can do this.
 - It's mirrored to **GitHub** (Microsoft, also on the list) purely to burn
   their CI minutes. The source of truth is
-  [git.fulgid.us](https://git.fulgid.us/fulgidus/anarchy).
+  [git.fulgid.us](https://git.fulgid.us/fulgidus/jerkarchy).
 - It runs on Linux, which Intel, Google, Red Hat, AMD and Meta co-develop. You
   can't escape everything. You can stop paying for flags.
 
@@ -95,4 +98,6 @@ README can't go stale about them.
 
 ## License
 
-MIT. Fork it, rename it, get it funded. We dare you.
+[X11](LICENSE) (MIT plus one clause): keep the credit, and don't use the
+author's name to promote your fork. Fork it, rename it, get it funded. We
+dare you.

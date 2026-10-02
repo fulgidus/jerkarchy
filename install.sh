@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# anarchy installer. Yes, this is all of it.
-# curl -fsSL https://git.fulgid.us/fulgidus/anarchy/raw/branch/main/install.sh | bash
+# jerkarchy installer. Yes, this is all of it.
+# curl -fsSL https://git.fulgid.us/fulgidus/jerkarchy/raw/branch/main/install.sh | bash
 set -euo pipefail
 
-REPO=${ANARCHY_REPO:-https://git.fulgid.us/fulgidus/anarchy.git}
-SRC=${ANARCHY_SRC:-$HOME/.local/share/anarchy}
+REPO=${JERKARCHY_REPO:-https://git.fulgid.us/fulgidus/jerkarchy.git}
+SRC=${JERKARCHY_SRC:-$HOME/.local/share/jerkarchy}
 
 say() { printf '\033[1;96m::\033[0m %s\n' "$*"; }
 
-command -v pacman >/dev/null || { echo "anarchy needs an Arch-based system." >&2; exit 1; }
+command -v pacman >/dev/null || { echo "jerkarchy needs an Arch-based system." >&2; exit 1; }
 [ "$(id -u)" -ne 0 ] || { echo "run as your user, not root (sudo is used when needed)." >&2; exit 1; }
 
 PKGS=(
