@@ -10,16 +10,29 @@ works if the thing actually works — so quality rules below are strict.
 
 ---
 
-## 1. Git and branches
+## 1. Git: gitflow
 
 - **Forgejo is the source of truth:** `ssh://git@git.fulgid.us/fulgidus/jerkarchy.git`
   (port 22; ignore any `:2222` the web UI may show).
 - GitHub (`github.com/fulgidus/jerkarchy`) is a **push mirror of `main` only**.
   Never push to GitHub. Anything pushed there directly is overwritten.
-- **Work on branches** (`feat/…`, `fix/…`, `docs/…`, `chore/…`), push them to
-  Forgejo, merge into `main` only when finished and verified. `main` is what
-  the world (and CI) sees.
-- Never force-push `main`. Never rewrite history someone else pushed; merge it.
+- Branching is **gitflow**:
+
+  | Branch | From | Merges into | Purpose |
+  |---|---|---|---|
+  | `main` | — | — | released states only, each merge tagged `vX.Y.Z` (semver) |
+  | `develop` | `main` | — | integration; the base for all work |
+  | `feature/<name>` | `develop` | `develop` | any change: features, fixes, docs, chores |
+  | `release/<X.Y.Z>` | `develop` | `main` **and** `develop` | version bump, final checks, tag on `main` |
+  | `hotfix/<X.Y.Z>` | `main` | `main` **and** `develop` | urgent fix to a release, tag on `main` |
+
+- Merges use `--no-ff`. Delete merged `feature/*` branches (local and remote).
+- **Agents never commit to `main` or `develop` directly**: work on
+  `feature/*`, push it, and merge into `develop` when it's finished and
+  verified (§4). Release and hotfix merges into `main` are **outward-facing**
+  (they reach GitHub): only with the user's go-ahead.
+- Never force-push `main` or `develop`. Never rewrite history someone else
+  pushed; merge it.
 - Commit messages: imperative summary line (≤ 72 chars), a body explaining
   *why* when it isn't obvious. Agents add a `Co-Authored-By:` trailer.
 - No secrets, ever: Wi-Fi passwords, tokens, keys, `.bak` files, personal
@@ -194,6 +207,6 @@ live; they change.
   only for decisions that are genuinely theirs.
 - Own mistakes immediately and specifically; fix them, then save the lesson
   here if it's a convention.
-- Before anything outward-facing (publishing, making a repo public, pushing
-  `main`, deleting), confirm with the user unless they already said so in
-  the current request.
+- Before anything outward-facing (publishing, making a repo public, merging
+  or pushing to `main`, tagging a release, deleting), confirm with the user
+  unless they already said so in the current request.
