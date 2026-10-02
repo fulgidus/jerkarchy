@@ -26,11 +26,20 @@ works if the thing actually works — so quality rules below are strict.
   | `release/<X.Y.Z>` | `develop` | `main` **and** `develop` | version bump, final checks, tag on `main` |
   | `hotfix/<X.Y.Z>` | `main` | `main` **and** `develop` | urgent fix to a release, tag on `main` |
 
+- `develop` is the **default branch** on Forgejo.
+- **`main` is protected: no pushes, only pull-request merges on Forgejo.**
+  A release or hotfix is a PR (`release/X.Y.Z` → `main`, or
+  `hotfix/X.Y.Z` → `main`) that the user reviews and merges. After the merge:
+  tag `vX.Y.Z` on the merge commit (annotated tag), push the tag, and merge
+  `main` back into `develop`. Tags are mirrored to GitHub too.
 - Merges use `--no-ff`. Delete merged `feature/*` branches (local and remote).
 - **Agents never commit to `main` or `develop` directly**: work on
   `feature/*`, push it, and merge into `develop` when it's finished and
-  verified (§4). Release and hotfix merges into `main` are **outward-facing**
-  (they reach GitHub): only with the user's go-ahead.
+  verified (§4). Anything that reaches `main` (PRs, tags) is
+  **outward-facing**: only with the user's go-ahead.
+- Versions: `v0.0.0` is the first tag. Bump semver per release: patch for
+  fixes, minor for new features or binds, major for breaking changes to the
+  layout or installer.
 - Never force-push `main` or `develop`. Never rewrite history someone else
   pushed; merge it.
 - Commit messages: imperative summary line (≤ 72 chars), a body explaining
