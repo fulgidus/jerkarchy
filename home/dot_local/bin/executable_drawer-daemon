@@ -1,0 +1,8 @@
+#!/bin/sh
+# drawer-daemon <wm> — start nwg-drawer resident (river|sway), with power bar.
+exec nwg-drawer -r -ovl -wm "${1:?usage: drawer-daemon river|sway}" -term wezterm -fm thunar \
+    -pblock "$HOME/.local/bin/session-lock" \
+    -pbexit "$HOME/.local/bin/session-logout" \
+    -pbsleep 'systemctl suspend' \
+    -pbreboot 'systemctl reboot' \
+    -pbpoweroff 'systemctl poweroff'

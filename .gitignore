@@ -1,0 +1,5 @@
+# build outputs
+src/*/sway-binds
+src/*/zig-out
+src/*/.zig-cache
+*.bak*

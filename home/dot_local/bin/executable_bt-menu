@@ -1,0 +1,91 @@
+#!/bin/sh
+# bt-menu — drop-down Bluetooth menu under the bar (fuzzel + bluetoothctl),
+# twin of wifi-menu. Click the bar's bluetooth item (or run it) to toggle.
+# Pick a paired device to connect / disconnect it; "scan" finds new devices
+# and pairs + trusts + connects the one you pick.
+# Style: ~/.config/fuzzel/bar-menu.ini (shared with other bar menus).
+
+menu() { fuzzel --config "$HOME/.config/fuzzel/bar-menu.ini" --dmenu "$@"; }
+note() { notify-send -a bluetooth -i bluetooth "$@"; }
+
+# Nerd Font icons as UTF-8 byte escapes (kept out of the file as raw glyphs).
+I_LINK=$(printf '\357\203\201')    # U+F0C1 link (connected)
+I_SCAN=$(printf '\357\200\202')    # U+F002 search
+I_POWER=$(printf '\357\200\221')   # U+F011 power
+I_BACK=$(printf '\357\201\240')    # U+F060 arrow-left
+
+# Toggle: a second click closes an open menu (anchored: only fuzzel itself).
+pkill -f "^fuzzel --config $HOME/.config/fuzzel/bar-menu.ini" && exit 0
+
+powered() { bluetoothctl show | grep -q 'Powered: yes'; }
+
+if ! powered; then
+    choice=$(printf '%s  turn bluetooth on\n' "$I_POWER" | menu --prompt 'bt off › ')
+    [ -z "$choice" ] && exit 0
+    rfkill unblock bluetooth 2>/dev/null
+    bluetoothctl power on >/dev/null && note "Bluetooth on" || note -u critical "Couldn't turn Bluetooth on"
+    exit 0
+fi
+
+# One row per device: <display> TAB <mac> TAB <connected 0|1>, connected first.
+# $1 = "Paired" for paired devices, "" for everything discovered.
+device_rows() {
+    bluetoothctl devices $1 | while read -r _ mac name; do
+        [ -z "$mac" ] && continue
+        info=$(bluetoothctl info "$mac")
+        if [ "$1" != Paired ] && printf '%s\n' "$info" | grep -q 'Paired: yes'; then continue; fi
+        connected=0; printf '%s\n' "$info" | grep -q 'Connected: yes' && connected=1
+        batt=$(printf '%s\n' "$info" | sed -n 's/.*Battery Percentage: 0x[0-9a-fA-F]* (\([0-9]*\)).*/\1/p')
+        mark=" "; [ "$connected" = 1 ] && mark="●"
+        line=$(printf '%s %-26.26s %4s  %s' "$mark" "${name:-$mac}" "${batt:+$batt%}" "$([ "$connected" = 1 ] && printf '%s' "$I_LINK")")
+        printf '%d\t%s\t%s\t%d\n' "$((1 - connected))" "$line" "$mac" "$connected"
+    done | sort -t"$(printf '\t')" -k1,1n -s | cut -f2-
+}
+
+rows=$(device_rows Paired)
+connected_mac=$(printf '%s\n' "$rows" | awk -F'\t' '$3 == 1 {print $2; exit}')
+connected_name=""
+[ -n "$connected_mac" ] && connected_name=$(bluetoothctl info "$connected_mac" | sed -n 's/^\s*Alias: //p')
+
+actions="$I_SCAN  scan for new devices
+$I_POWER  turn bluetooth off"
+
+choice=$({ printf '%s\n' "$rows" | cut -f1 | grep -v '^$'; printf '%s\n' "$actions"; } |
+    menu --prompt 'bt › ' --placeholder "${connected_name:-no device connected}" --lines 12)
+[ -z "$choice" ] && exit 0
+
+case "$choice" in
+    "$I_POWER  turn bluetooth off")
+        bluetoothctl power off >/dev/null && note "Bluetooth off"; exit 0 ;;
+    "$I_SCAN  scan for new devices")
+        note "Scanning…" "8 seconds — put the device in pairing mode"
+        bluetoothctl --timeout 8 scan on >/dev/null 2>&1
+        new=$(device_rows "")
+        [ -z "$new" ] && { note "No new devices found"; exit 0; }
+        pick=$({ printf '%s\n' "$new" | cut -f1; printf '%s  back\n' "$I_BACK"; } |
+            menu --prompt 'pair › ' --placeholder 'pick a device to pair')
+        [ -z "$pick" ] && exit 0
+        [ "$pick" = "$I_BACK  back" ] && exec "$0"
+        mac=$(printf '%s\n' "$new" | awk -F'\t' -v p="$pick" '$1 == p {print $2; exit}')
+        [ -z "$mac" ] && exit 0
+        note "Pairing…" "$mac"
+        if out=$(bluetoothctl pair "$mac" 2>&1) && bluetoothctl trust "$mac" >/dev/null && out=$(bluetoothctl connect "$mac" 2>&1); then
+            note "Paired and connected" "$(bluetoothctl info "$mac" | sed -n 's/^\s*Alias: //p')"
+        else
+            note -u critical "Couldn't pair $mac" "$out"
+        fi
+        exit 0 ;;
+esac
+
+# A paired device: toggle its connection. Look it up by the display line.
+row=$(printf '%s\n' "$rows" | awk -F'\t' -v pick="$choice" '$1 == pick {print; exit}')
+[ -z "$row" ] && exit 0
+mac=$(printf '%s\n' "$row" | cut -f2)
+name=$(bluetoothctl info "$mac" | sed -n 's/^\s*Alias: //p')
+if [ "$(printf '%s\n' "$row" | cut -f3)" = 1 ]; then
+    bluetoothctl disconnect "$mac" >/dev/null && note "Disconnected" "$name"
+else
+    note "Connecting…" "$name"
+    if out=$(bluetoothctl connect "$mac" 2>&1); then note "Connected" "$name"
+    else note -u critical "Couldn't connect $name" "$(printf '%s\n' "$out" | tail -1)"; fi
+fi

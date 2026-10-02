@@ -1,0 +1,9 @@
+#!/bin/sh
+# volume up|down|mute|micmute — wpctl, 10% steps, capped at 100%.
+case "$1" in
+    up)      wpctl set-mute @DEFAULT_AUDIO_SINK@ 0; wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 10%+ ;;
+    down)    wpctl set-volume @DEFAULT_AUDIO_SINK@ 10%- ;;
+    mute)    wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
+    micmute) wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle ;;
+    *) echo "usage: volume up|down|mute|micmute" >&2; exit 2 ;;
+esac

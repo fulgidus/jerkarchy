@@ -1,0 +1,7 @@
+#!/bin/sh
+# Super+H / Super+Escape: toggle a floating window listing all sway bindings,
+# generated live from ~/.config/sway/config by sway-binds (~/src/sway-binds).
+# --always-new-process so the window has its own process we can pkill to toggle.
+pkill -f '^/usr/bin/wezterm-gui start .*--class sway-help' && exit 0
+exec wezterm start --always-new-process --class sway-help -- \
+    sh -c '"$HOME/.local/bin/sway-binds" | less -R'

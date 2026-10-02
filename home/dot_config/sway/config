@@ -1,0 +1,293 @@
+# sway config — ported from ~/.config/river/init, keybinds mirror the old
+# Hyprland/caelestia layout. Tree tiling (i3-style): every split is a node,
+# autotiling splits the *focused* window along its longer side (Hyprland
+# dwindle), and you can override the direction with the Split keys.
+#
+# Lines starting with "#:" label the binding below them in the Super+H list
+# (sway-binds). Unlabelled bindings are described from the command.
+# Section titles come from the banner comments.
+
+set $mod Mod4
+set $bin ~/.local/bin
+set $term wezterm
+
+include /etc/sway/config.d/*
+
+# ------------------------------------------------------------------
+# Input
+# ------------------------------------------------------------------
+input type:keyboard {
+    xkb_layout it,us
+    xkb_variant ,intl
+    xkb_options grp:alt_shift_toggle
+    repeat_delay 250
+    repeat_rate 35
+}
+input type:touchpad {
+    tap enabled
+    natural_scroll enabled
+    dwt enabled
+    scroll_factor 0.3
+}
+focus_follows_mouse yes
+mouse_warping container
+seat * xcursor_theme sweet-cursors 24
+
+# ------------------------------------------------------------------
+# Look
+# ------------------------------------------------------------------
+output * bg ~/.local/share/backgrounds/wallpaper.png fill #0a0a0f
+font pango:JetBrainsMono Nerd Font 10
+default_border pixel 2
+default_floating_border pixel 2
+titlebar_border_thickness 1
+gaps inner 10
+gaps outer 0
+smart_borders off
+
+# class                 border   bg       text     indicator child_border
+client.focused          #00f0ff  #0a0a0f  #e5e1e7  #ff2b6d   #00f0ff
+client.focused_inactive #2a2a35  #0a0a0f  #8a8aa0  #2a2a35   #2a2a35
+client.unfocused        #2a2a35  #0a0a0f  #55556a  #2a2a35   #2a2a35
+client.urgent           #ff2b6d  #0a0a0f  #e5e1e7  #ff2b6d   #ff2b6d
+
+for_window [app_id="sway-help"] floating enable, resize set 1100 800, move position center
+for_window [app_id="tui-float"] floating enable, resize set 900 600, move position center
+for_window [app_id="blueman-manager"] floating enable
+for_window [app_id="com.saivert.pwvucontrol|pavucontrol|org.pulseaudio.pavucontrol"] floating enable, resize set 900 600, move position center
+for_window [window_role="pop-up"] floating enable
+for_window [window_type="dialog"] floating enable
+
+# ------------------------------------------------------------------
+# Launchers and session
+# ------------------------------------------------------------------
+#: app drawer
+bindsym $mod+a exec nwg-drawer
+#: quick launcher (fuzzel)
+bindsym $mod+space exec pkill fuzzel || fuzzel
+#: session menu (lock, logout, suspend, reboot, poweroff)
+bindsym Ctrl+Alt+Delete exec $bin/session-menu
+#: show these bindings
+bindsym $mod+h exec ~/.config/sway/show-bindings
+#: show these bindings
+bindsym $mod+Escape exec ~/.config/sway/show-bindings
+#: lock screen
+bindsym $mod+l exec $bin/session-lock
+#: suspend, then hibernate
+bindsym $mod+Shift+l exec systemctl suspend-then-hibernate
+#: reload sway config
+bindsym $mod+Ctrl+r reload
+
+# ------------------------------------------------------------------
+# Apps
+# ------------------------------------------------------------------
+#: terminal (wezterm)
+bindsym $mod+t exec $term
+#: terminal (wezterm)
+bindsym $mod+Return exec $term
+#: browser (librewolf)
+bindsym $mod+w exec librewolf
+#: editor (VSCodium, else Code - OSS)
+bindsym $mod+c exec $bin/open-editor
+#: file manager (thunar)
+bindsym $mod+e exec thunar
+#: audio mixer (pwvucontrol)
+bindsym Ctrl+Alt+v exec pwvucontrol
+#: clipboard history: paste an entry
+bindsym $mod+v exec pkill fuzzel || cliphist list | fuzzel --dmenu | cliphist decode | wl-copy
+#: clipboard history: delete an entry
+bindsym $mod+Alt+v exec pkill fuzzel || cliphist list | fuzzel --dmenu | cliphist delete
+
+# ------------------------------------------------------------------
+# Windows
+# ------------------------------------------------------------------
+bindsym $mod+q kill
+bindsym $mod+f fullscreen toggle
+bindsym $mod+Alt+space floating toggle
+#: pin floating window to all workspaces
+bindsym $mod+p sticky toggle
+#: centre floating window
+bindsym $mod+Ctrl+backslash move position center
+bindsym $mod+Left focus left
+bindsym $mod+Right focus right
+bindsym $mod+Up focus up
+bindsym $mod+Down focus down
+bindsym $mod+Shift+Left move left
+bindsym $mod+Shift+Right move right
+bindsym $mod+Shift+Up move up
+bindsym $mod+Shift+Down move down
+#: focus next window
+bindsym Alt+Tab focus next
+#: focus previous window
+bindsym Alt+Shift+Tab focus prev
+#: focus parent container (then move/resize the whole group)
+bindsym $mod+Ctrl+Up focus parent
+#: focus child container
+bindsym $mod+Ctrl+Down focus child
+# Super+left drag moves, Super+right drag resizes (tiled or floating).
+floating_modifier $mod normal
+
+# ------------------------------------------------------------------
+# Split and layout
+# ------------------------------------------------------------------
+# autotiling picks the split automatically; these override it for the
+# focused window: the *next* window opens beside / below it.
+#: next window opens beside this one
+bindsym $mod+b splith
+#: next window opens below this one
+bindsym $mod+n splitv
+#: flip this split's direction
+bindsym $mod+o layout toggle split
+#: tabbed group (like Hyprland groups); again to cycle stacked/split
+bindsym $mod+Alt+o layout toggle tabbed stacking split
+#: narrower
+bindsym $mod+minus resize shrink width 40px
+#: wider
+bindsym $mod+equal resize grow width 40px
+#: shorter
+bindsym $mod+Shift+minus resize shrink height 40px
+#: taller
+bindsym $mod+Shift+equal resize grow height 40px
+#: narrower
+bindsym $mod+Alt+Left resize shrink width 40px
+#: wider
+bindsym $mod+Alt+Right resize grow width 40px
+#: shorter
+bindsym $mod+Alt+Up resize shrink height 40px
+#: taller
+bindsym $mod+Alt+Down resize grow height 40px
+
+# ------------------------------------------------------------------
+# Workspaces
+# ------------------------------------------------------------------
+bindsym $mod+1 workspace number 1
+bindsym $mod+2 workspace number 2
+bindsym $mod+3 workspace number 3
+bindsym $mod+4 workspace number 4
+bindsym $mod+5 workspace number 5
+bindsym $mod+6 workspace number 6
+bindsym $mod+7 workspace number 7
+bindsym $mod+8 workspace number 8
+bindsym $mod+9 workspace number 9
+bindsym $mod+Alt+1 move container to workspace number 1
+bindsym $mod+Alt+2 move container to workspace number 2
+bindsym $mod+Alt+3 move container to workspace number 3
+bindsym $mod+Alt+4 move container to workspace number 4
+bindsym $mod+Alt+5 move container to workspace number 5
+bindsym $mod+Alt+6 move container to workspace number 6
+bindsym $mod+Alt+7 move container to workspace number 7
+bindsym $mod+Alt+8 move container to workspace number 8
+bindsym $mod+Alt+9 move container to workspace number 9
+# Relative workspaces work like Hyprland's workspace +1/-1: sway-ws goes to
+# number N±1 and creates it if needed, so you can keep walking into new ones.
+#: previous workspace (N-1)
+bindsym $mod+Ctrl+Left exec $bin/sway-ws focus prev
+#: next workspace (N+1, created if new)
+bindsym $mod+Ctrl+Right exec $bin/sway-ws focus next
+#: previous workspace (N-1)
+bindsym $mod+Prior exec $bin/sway-ws focus prev
+#: next workspace (N+1, created if new)
+bindsym $mod+Next exec $bin/sway-ws focus next
+#: previous workspace with windows
+bindsym --whole-window $mod+button4 workspace prev_on_output
+#: next workspace with windows
+bindsym --whole-window $mod+button5 workspace next_on_output
+#: move window to workspace N-1, follow it
+bindsym $mod+Ctrl+Alt+Left exec $bin/sway-ws move prev
+#: move window to workspace N+1 (created if new), follow it
+bindsym $mod+Ctrl+Alt+Right exec $bin/sway-ws move next
+#: move window to workspace N-1, follow it
+bindsym $mod+Ctrl+Shift+Left exec $bin/sway-ws move prev
+#: move window to workspace N+1 (created if new), follow it
+bindsym $mod+Ctrl+Shift+Right exec $bin/sway-ws move next
+#: move window to workspace N-1, follow it
+bindsym $mod+Alt+Prior exec $bin/sway-ws move prev
+#: move window to workspace N+1 (created if new), follow it
+bindsym $mod+Alt+Next exec $bin/sway-ws move next
+
+# ------------------------------------------------------------------
+# Monitors
+# ------------------------------------------------------------------
+# Each workspace lives on one monitor. Super+arrows / Super+Shift+arrows cross
+# monitor edges on their own; these move whole workspaces between monitors.
+# Unplugging a monitor moves its workspaces to the remaining one(s); a new
+# monitor gets the next free workspace. Layout/scale: nwg-displays (if installed)
+# writes ~/.config/sway/outputs, included below.
+#: focus monitor to the left
+bindsym $mod+Alt+Shift+Left focus output left
+#: focus monitor to the right
+bindsym $mod+Alt+Shift+Right focus output right
+#: move workspace to monitor on the left
+bindsym $mod+Ctrl+Alt+Shift+Left move workspace to output left
+#: move workspace to monitor on the right
+bindsym $mod+Ctrl+Alt+Shift+Right move workspace to output right
+include ~/.config/sway/outputs
+
+# ------------------------------------------------------------------
+# Scratchpad
+# ------------------------------------------------------------------
+#: show/hide scratchpad (cycles if several)
+bindsym $mod+s scratchpad show
+#: move window to scratchpad
+bindsym $mod+Ctrl+Shift+Up move scratchpad
+#: bring window back from scratchpad (tile it here)
+bindsym $mod+Ctrl+Shift+Down floating disable
+
+# ------------------------------------------------------------------
+# Screenshots
+# ------------------------------------------------------------------
+#: screenshot: full screen (saved + copied)
+bindsym Print exec $bin/screenshot full
+#: screenshot: region (saved + copied)
+bindsym $mod+Shift+s exec $bin/screenshot region
+
+# ------------------------------------------------------------------
+# Media / volume / brightness
+# ------------------------------------------------------------------
+# --locked: also active while the lock screen is up.
+#: volume +10%
+bindsym --locked XF86AudioRaiseVolume exec $bin/volume up
+#: volume -10%
+bindsym --locked XF86AudioLowerVolume exec $bin/volume down
+#: mute speakers
+bindsym --locked XF86AudioMute exec $bin/volume mute
+#: mute speakers
+bindsym --locked $mod+Shift+m exec $bin/volume mute
+#: mute microphone
+bindsym --locked XF86AudioMicMute exec $bin/volume micmute
+#: play / pause
+bindsym --locked XF86AudioPlay exec playerctl play-pause
+#: play / pause
+bindsym --locked XF86AudioPause exec playerctl play-pause
+#: next track
+bindsym --locked XF86AudioNext exec playerctl next
+#: previous track
+bindsym --locked XF86AudioPrev exec playerctl previous
+#: play / pause
+bindsym --locked $mod+Ctrl+space exec playerctl play-pause
+#: next track
+bindsym --locked $mod+Ctrl+equal exec playerctl next
+#: previous track
+bindsym --locked $mod+Ctrl+minus exec playerctl previous
+#: brightness +5%
+bindsym --locked XF86MonBrightnessUp exec brightnessctl set 5%+
+#: brightness -5%
+bindsym --locked XF86MonBrightnessDown exec brightnessctl set 5%-
+
+# ------------------------------------------------------------------
+# Autostart
+# ------------------------------------------------------------------
+# waybar via exec, not `bar { swaybar_command ... }`: sway runs
+# swaybar_command as a bare program name (no shell), so arguments break it.
+exec waybar -c ~/.config/waybar/sway.jsonc
+exec autotiling
+# XDG autostart entries (/etc/xdg/autostart, ~/.config/autostart): sway doesn't
+# run them itself. sway-session.target (~/.config/systemd/user) pulls in
+# systemd's xdg-desktop-autostart.target, which honours OnlyShowIn/NotShowIn.
+# Runs after /etc/sway/config.d has imported the session env into systemd.
+exec systemctl --user start sway-session.target
+exec mako
+exec /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+exec wl-paste --watch cliphist store
+exec $bin/drawer-daemon sway
+exec swayidle -w timeout 600 $bin/session-lock before-sleep $bin/session-lock

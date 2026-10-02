@@ -1,0 +1,20 @@
+#!/bin/sh
+# power-profile [next|get|power-saver|balanced|performance]
+# Talks to power-profiles-daemon over D-Bus (powerprofilesctl needs
+# python-gobject, which isn't installed). `next` cycles in the daemon's own
+# order (power-saver → balanced → performance → …), same as waybar's module.
+svc=org.freedesktop.UPower.PowerProfiles
+obj=/org/freedesktop/UPower/PowerProfiles
+get() { busctl --system get-property $svc $obj $svc ActiveProfile | sed 's/^s "\(.*\)"$/\1/'; }
+set_() { busctl --system set-property $svc $obj $svc ActiveProfile s "$1"; }
+
+case "${1:-next}" in
+    get) get ;;
+    power-saver|balanced|performance) set_ "$1" ;;
+    next)
+        profiles=$(busctl --system get-property $svc $obj $svc Profiles | grep -oE '"(power-saver|balanced|performance)"' | tr -d '"')
+        cur=$(get)
+        nxt=$(printf '%s\n' $profiles | awk -v c="$cur" '{p[NR]=$0} $0==c{i=NR} END{print p[i % NR + 1]}')
+        set_ "${nxt:-balanced}" ;;
+    *) echo "usage: power-profile [next|get|power-saver|balanced|performance]" >&2; exit 2 ;;
+esac

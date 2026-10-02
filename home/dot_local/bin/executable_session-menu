@@ -1,0 +1,11 @@
+#!/bin/sh
+# Ctrl+Alt+Delete power/session menu (fuzzel dmenu)
+choice=$(printf 'lock\nlogout\nsuspend\nhibernate\nreboot\npoweroff\n' | fuzzel --dmenu --prompt 'session > ' --lines 6) || exit 0
+case "$choice" in
+    lock)      "$HOME/.local/bin/session-lock" ;;
+    logout)    "$HOME/.local/bin/session-logout" ;;
+    suspend)   systemctl suspend ;;
+    hibernate) systemctl hibernate ;;
+    reboot)    systemctl reboot ;;
+    poweroff)  systemctl poweroff ;;
+esac

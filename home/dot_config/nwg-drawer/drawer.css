@@ -1,0 +1,58 @@
+/* nwg-drawer — river palette: cyan/magenta on near-black, square, monospace */
+* {
+    font-family: "JetBrainsMono Nerd Font", monospace;
+}
+
+window {
+    background-color: rgba(10, 10, 15, 0.94);
+    color: #c8c8d0;
+}
+
+entry {
+    background-color: #0a0a0f;
+    color: #e5e1e7;
+    border: 1px solid #2a2a35;
+    border-radius: 0;
+    caret-color: #00f0ff;
+    padding: 4px 8px;
+}
+entry:focus {
+    border-color: #00f0ff;
+    box-shadow: none;
+}
+
+button, image {
+    background: none;
+    border: none;
+    border-radius: 0;
+    color: #c8c8d0;
+}
+button:hover, button:focus {
+    background-color: rgba(0, 240, 255, 0.10);
+    box-shadow: inset 0 -2px 0 #00f0ff;
+}
+
+#category-button {
+    margin: 0 6px;
+    color: #8a8aa0;
+}
+#category-button:hover, #category-button:checked {
+    color: #00f0ff;
+}
+
+#pinned-box {
+    padding-bottom: 5px;
+    border-bottom: 1px solid #2a2a35;
+}
+
+#files-box {
+    padding: 5px;
+    border: 1px solid #2a2a35;
+    border-radius: 0;
+}
+
+#math-label {
+    font-weight: bold;
+    font-size: 16px;
+    color: #ff2b6d;
+}

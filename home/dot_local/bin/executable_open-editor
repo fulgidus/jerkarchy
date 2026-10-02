@@ -1,0 +1,4 @@
+#!/bin/sh
+# VSCodium if installed, else Code - OSS (Arch's `code`).
+command -v codium >/dev/null && exec codium "$@"
+exec code "$@"

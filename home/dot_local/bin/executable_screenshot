@@ -1,0 +1,8 @@
+#!/bin/sh
+# screenshot full|region — save to ~/Pictures/Screenshots and copy to clipboard.
+dir="$HOME/Pictures/Screenshots"; mkdir -p "$dir"
+file="$dir/$(date +%Y-%m-%d_%H-%M-%S).png"
+case "$1" in
+    region) geom=$(slurp) || exit 0; grim -g "$geom" - ;;
+    *)      grim - ;;
+esac | tee "$file" | wl-copy

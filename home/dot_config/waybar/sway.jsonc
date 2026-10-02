@@ -1,0 +1,78 @@
+// waybar for sway — same bar as config.jsonc (river), sway modules
+{
+  "layer": "top",
+  "position": "top",
+  "height": 26,
+  "spacing": 0,
+  "modules-left": ["sway/workspaces", "sway/mode", "sway/scratchpad", "sway/window"],
+  "modules-center": ["mpris"],
+  "modules-right": ["tray", "idle_inhibitor", "pulseaudio", "backlight", "bluetooth", "network", "custom/battery", "clock"],
+
+  "sway/workspaces": { "disable-scroll": false, "all-outputs": false },
+  "sway/mode": { "format": "[{}]" },
+  "sway/scratchpad": { "format": "scr {count}", "show-empty": false, "tooltip": true },
+  "sway/window": { "format": "› {}", "max-length": 70 },
+
+  "tray": { "spacing": 6 },
+  "mpris": {
+    "format": "▶ {dynamic}",
+    "format-paused": "⏸ {dynamic}",
+    "format-stopped": "",
+    "dynamic-len": 50,
+    "dynamic-order": ["artist", "title"],
+    "dynamic-separator": " – ",
+    "tooltip-format": "{player}: {dynamic}\nclick play/pause · right-click next · middle-click previous · scroll skip",
+    "on-scroll-up": "playerctl next",
+    "on-scroll-down": "playerctl previous"
+  },
+  "idle_inhibitor": {
+    "format": "{icon}",
+    "format-icons": { "activated": "\udb80\udd76", "deactivated": "\udb81\udeca" },
+    "tooltip-format-activated": "Caffeine: screen won't lock or sleep. Click to turn off.",
+    "tooltip-format-deactivated": "Click for caffeine (keep the screen awake)."
+  },
+  "pulseaudio": {
+    "format": "{icon} {volume}%",
+    "format-muted": "\udb81\udf5f --",
+    "format-icons": { "default": ["\udb81\udd7f", "\udb81\udd80", "\udb81\udd7e"] },
+    "format-source": "mic {volume}%",
+    "format-source-muted": "mic muted",
+    "tooltip-format": "{desc}\n{volume}% · {format_source}\nclick: mute · right-click: mixer · scroll: ±5%",
+    "on-click": "$HOME/.local/bin/volume mute",
+    "on-click-right": "pwvucontrol",
+    "scroll-step": 5
+  },
+  "backlight": { "format": "{icon} {percent}%", "format-icons": ["\udb80\udcde", "\udb80\udcdf", "\udb80\udce0"] },
+  "network": {
+    "format-wifi": "{icon} {essid}",
+    "format-icons": ["\udb82\udd1f", "\udb82\udd22", "\udb82\udd25", "\udb82\udd28"],
+    "format-ethernet": "\udb80\ude00 eth",
+    "format-disconnected": "\udb82\udd2e",
+    "tooltip-format": "{ifname} {ipaddr}  ·  click: wifi menu",
+    "on-click": "$HOME/.local/bin/wifi-menu"
+  },
+  "bluetooth": {
+    "format": "\udb80\udcaf",
+    "format-disabled": "\udb80\udcb2",
+    "format-off": "\udb80\udcb2",
+    "format-on": "\udb80\udcaf",
+    "format-connected": "\udb80\udcb1 {device_alias}",
+    "format-connected-battery": "\udb80\udcb1 {device_alias} {device_battery_percentage}%",
+    "tooltip-format": "{controller_alias}  ·  click: bluetooth menu",
+    "on-click": "$HOME/.local/bin/bt-menu"
+  },
+  // waybar's own battery module mis-computes time for charge-based batteries
+  // (showed "2519 h"); bar-battery reads sysfs itself and smooths the estimate.
+  // Icons in this file are JSON \u escapes (Material Design Nerd Font) so the
+  // file stays ASCII — raw private-use glyphs get lost in editing.
+  "custom/battery": {
+    "exec": "$HOME/.local/bin/bar-battery",
+    "return-type": "json",
+    "interval": 30,
+    "on-click": "$HOME/.local/bin/power-profile next"
+  },
+  "clock": {
+    "format": "{:%a %d %b %H:%M}",
+    "tooltip-format": "<tt>{calendar}</tt>"
+  }
+}

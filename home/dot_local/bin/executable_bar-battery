@@ -1,0 +1,134 @@
+#!/bin/sh
+# bar-battery — waybar item for battery + power profile (JSON):
+# <battery icon, bolt when charging> <percent> <profile icon>.
+# Replaces waybar's built-in battery module, whose time estimate is wrong for
+# batteries reporting charge (µAh/µA) instead of energy (µWh/µW) — it showed
+# "2519 h" for ~6.5 h — and its power-profiles-daemon module, so both share
+# one item and one tooltip. Reads sysfs directly; works with either unit pair.
+bat=${1:-/sys/class/power_supply/BAT0}
+# Numeric sysfs read: missing, empty or non-numeric → 0 (keeps the JSON valid).
+read_n() { v=$(cat "$bat/$1" 2>/dev/null); case "$v" in ''|*[!0-9-]*) echo 0 ;; *) echo "$v" ;; esac; }
+
+status=$(cat "$bat/status" 2>/dev/null || echo Unknown)
+cap=$(read_n capacity)
+if [ -r "$bat/energy_now" ]; then now=$(read_n energy_now) full=$(read_n energy_full) rate=$(read_n power_now)
+else now=$(read_n charge_now) full=$(read_n charge_full) rate=$(read_n current_now); fi
+rate=${rate#-}   # some drivers report discharge as negative
+
+# Draw right now, in watts, for the tooltip.
+if [ -r "$bat/energy_now" ]; then watts=$(awk -v p="$rate" 'BEGIN{printf "%.1f", p/1e6}')
+else watts=$(awk -v i="$rate" -v v="$(read_n voltage_now)" 'BEGIN{printf "%.1f", i*v/1e12}'); fi
+
+# Rate for the forecast: the *actual* charge change over the last 20 minutes
+# (what you perceive as "% per hour"), from (time, charge) samples kept in
+# $XDG_RUNTIME_DIR and reset when the status changes. The instantaneous draw
+# swings with every idle second, so it's only the fallback (lightly smoothed)
+# until there are at least 5 minutes of history.
+window=1200 min_age=300
+hist="${XDG_RUNTIME_DIR:-/tmp}/bar-battery.$(basename "$bat").hist"
+t=$(date +%s)
+{ awk -v s="$status" -v t="$t" -v w="$window" '$2 == s && t - $1 <= w' "$hist" 2>/dev/null
+  printf '%s %s %s\n' "$t" "$status" "$now"; } > "$hist.new" && mv "$hist.new" "$hist"
+read -r t0 _ n0 < "$hist"
+age=$((t - t0))
+basis=""
+if [ "$age" -ge "$min_age" ]; then
+    case "$status" in
+        Discharging) delta=$((n0 - now)) ;;
+        Charging)    delta=$((now - n0)) ;;
+        *)           delta=0 ;;
+    esac
+    if [ "$delta" -gt 0 ]; then
+        rate=$((delta * 3600 / age))
+        basis="avg of last $((age / 60)) min"
+    fi
+fi
+if [ -z "$basis" ] && [ "$rate" -gt 0 ]; then
+    ema="${XDG_RUNTIME_DIR:-/tmp}/bar-battery.$(basename "$bat").ema"
+    read -r prev_status prev_rate 2>/dev/null < "$ema" || prev_status=""
+    [ "$prev_status" = "$status" ] && [ "${prev_rate:-0}" -gt 0 ] && rate=$(( (prev_rate * 4 + rate) / 5 ))
+    printf '%s %s\n' "$status" "$rate" > "$ema"
+    basis="current draw"
+fi
+
+# Hours left: to empty when discharging, to full when charging. Skip tiny
+# rates (< 1% of capacity per hour) — the estimate is meaningless then.
+eta=""
+if [ "$rate" -gt 0 ] && [ "$rate" -gt $((full / 100)) ]; then
+    case "$status" in
+        Discharging) eta=$(awk -v n="$now" -v r="$rate" 'BEGIN{h=n/r; printf "%dh %02dm", h, (h-int(h))*60}') ;;
+        Charging)    # target is the firmware charge limit (e.g. 90%), not 100%
+                     end=$(read_n charge_control_end_threshold); [ "$end" -gt 0 ] && [ "$end" -lt 100 ] || end=100
+                     eta=$(awk -v n="$now" -v f="$full" -v e="$end" -v r="$rate" 'BEGIN{t=f*e/100-n; if (t<0) t=0; h=t/r; printf "%dh %02dm", h, (h-int(h))*60}') ;;
+    esac
+fi
+
+# Battery icon (Material Design Nerd Font, UTF-8 byte escapes — raw
+# private-use glyphs don't survive editing): level in 10% steps; the
+# charging set has a bolt. Below 5% while discharging: battery-alert.
+step=$(( (cap + 5) / 10 )); [ "$step" -lt 1 ] && step=1; [ "$step" -gt 10 ] && step=10
+if [ "$status" = Charging ]; then
+    case "$step" in
+        1) bicon=$(printf '\363\260\242\234') ;;
+        2) bicon=$(printf '\363\260\202\206') ;;
+        3) bicon=$(printf '\363\260\202\207') ;;
+        4) bicon=$(printf '\363\260\202\210') ;;
+        5) bicon=$(printf '\363\260\242\235') ;;
+        6) bicon=$(printf '\363\260\202\211') ;;
+        7) bicon=$(printf '\363\260\242\236') ;;
+        8) bicon=$(printf '\363\260\202\212') ;;
+        9) bicon=$(printf '\363\260\202\213') ;;
+        10) bicon=$(printf '\363\260\202\205') ;;
+    esac
+else
+    case "$step" in
+        1) bicon=$(printf '\363\260\201\272') ;;
+        2) bicon=$(printf '\363\260\201\273') ;;
+        3) bicon=$(printf '\363\260\201\274') ;;
+        4) bicon=$(printf '\363\260\201\275') ;;
+        5) bicon=$(printf '\363\260\201\276') ;;
+        6) bicon=$(printf '\363\260\201\277') ;;
+        7) bicon=$(printf '\363\260\202\200') ;;
+        8) bicon=$(printf '\363\260\202\201') ;;
+        9) bicon=$(printf '\363\260\202\202') ;;
+        10) bicon=$(printf '\363\260\201\271') ;;
+    esac
+fi
+[ "$status" = Discharging ] && [ "$cap" -lt 5 ] && bicon=$(printf '\363\260\202\203')
+
+case "$status" in
+    Discharging) text="$bicon $cap%"; tip="$cap% · discharging${eta:+, $eta left ($basis)}\\ndraw now $watts W"; class=discharging ;;
+    Charging)    lim=$(read_n charge_control_end_threshold); [ "$lim" -gt 0 ] && [ "$lim" -lt 100 ] || lim=100
+                 text="$bicon $cap%"; tip="$cap% · charging${eta:+, ${lim}% in $eta}"; class=charging ;;
+    Full)        text="$bicon $cap%"; tip="$cap% · full, on AC"; class=full ;;
+    *)           text="$bicon $cap%"
+                 start=$(read_n charge_control_start_threshold) end=$(read_n charge_control_end_threshold)
+                 if [ "$end" -gt 0 ] && [ "$end" -lt 100 ]; then
+                     tip="$cap% · on AC, not charging: battery limit ${start}–${end}% (charges again below ${start}%)"
+                 else tip="$cap% · on AC, not charging"; fi
+                 class=plugged ;;
+esac
+if [ "$status" = Discharging ]; then
+    [ "$cap" -le 25 ] && class="$class warning"
+    [ "$cap" -le 10 ] && class="$class critical"
+fi
+if [ -r "$bat/energy_full_design" ]; then design=$(read_n energy_full_design); else design=$(read_n charge_full_design); fi
+health=$(awk -v f="$full" -v d="$design" 'BEGIN{ if (d > 0) printf "%d", f*100/d }')
+[ -n "$health" ] && tip="$tip\\nhealth $health% of design"
+
+# Power profile shares this item: symbol after the arrow, its own colour
+# (pango markup), one tooltip. Clicking the item cycles it (see waybar config).
+profile=$("$HOME/.local/bin/power-profile" get 2>/dev/null)
+# Material Design Nerd Font icons as UTF-8 byte escapes (raw private-use
+# glyphs don't survive editing): leaf U+F032A, scale-balance U+F05D1, rocket U+F14DE.
+case "$profile" in
+    performance) picon=$(printf '\363\261\223\236') pcolor="#ff2b6d" ;;
+    power-saver) picon=$(printf '\363\260\214\252') pcolor="#00ff9f" ;;
+    balanced)    picon=$(printf '\363\260\227\221') pcolor="#c8c8d0" ;;
+    *)           picon="" pcolor="" ;;
+esac
+[ -n "$picon" ] && text="$text <span color='$pcolor'>$picon</span>"
+tip="$tip\\npower profile: ${profile:-unavailable} · click to cycle"
+
+classes=$(printf '%s\n' $class | awk '{printf "%s\"%s\"", (NR>1 ? ", " : ""), $0}')
+printf '{"text": "%s", "tooltip": "%s", "class": [%s], "percentage": %s}\n' "$text" "$tip" "$classes" "$cap"

@@ -1,0 +1,74 @@
+#!/bin/sh
+# wifi-menu — drop-down Wi-Fi picker under the bar (fuzzel + nmcli).
+# Click the bar's network item (or run it) to toggle. Pick a network to
+# connect; secured networks you haven't used before ask for the password.
+# Style: ~/.config/fuzzel/bar-menu.ini (shared with other bar menus).
+
+menu() { fuzzel --config "$HOME/.config/fuzzel/bar-menu.ini" --dmenu "$@"; }
+note() { notify-send -a wifi -i network-wireless "$@"; }
+
+# Nerd Font icons as UTF-8 byte escapes (kept out of the file as raw glyphs).
+I_LOCK=$(printf '\357\200\243')    # U+F023 lock
+I_RESCAN=$(printf '\357\200\241')  # U+F021 refresh
+I_POWER=$(printf '\357\200\221')   # U+F011 power
+I_UNLINK=$(printf '\357\204\247')  # U+F127 broken link
+
+# Toggle: a second click closes an open menu (anchored: only fuzzel itself).
+pkill -f "^fuzzel --config $HOME/.config/fuzzel/bar-menu.ini" && exit 0
+
+if [ "$(nmcli radio wifi)" != enabled ]; then
+    choice=$(printf '%s  turn wifi on\n' "$I_POWER" | menu --prompt 'wifi off › ')
+    [ -n "$choice" ] && nmcli radio wifi on && note "Wi-Fi on"
+    exit 0
+fi
+
+# Rows: <display> TAB <ssid> TAB <secured 0|1>, strongest first, connected on top.
+# nmcli fields SIGNAL:SECURITY:IN-USE:SSID — SSID last so it may contain ':'.
+rows=$(nmcli --escape no -t -f SIGNAL,SECURITY,IN-USE,SSID device wifi list --rescan auto 2>/dev/null |
+    sort -t: -k1,1nr |
+    awk -F: -v lock="$I_LOCK" '{
+        sig = $1; sec = $2; use = $3; ssid = substr($0, length($1 $2 $3) + 4)
+        if (ssid == "" || seen[ssid]++) next
+        secured = (sec != "" && sec != "--")
+        line = sprintf("%s %-28.28s %3d%%  %s", (use == "*") ? "●" : " ", ssid, sig, secured ? lock : " ")
+        printf "%d\t%s\t%s\t%d\n", (use == "*") ? 0 : 1, line, ssid, secured
+    }' | sort -t"$(printf '\t')" -k1,1n -s | cut -f2- | head -n 10)
+
+current=$(printf '%s\n' "$rows" | awk -F'\t' '$1 ~ /^●/ {print $2; exit}')
+
+actions="$I_RESCAN  rescan
+$I_POWER  turn wifi off"
+[ -n "$current" ] && actions="$I_UNLINK  disconnect $current
+$actions"
+
+choice=$({ printf '%s\n' "$rows" | cut -f1 | grep -v '^$'; printf '%s\n' "$actions"; } |
+    menu --prompt 'wifi › ' --placeholder "${current:-not connected}" --lines 14)
+[ -z "$choice" ] && exit 0
+
+case "$choice" in
+    "$I_RESCAN  rescan")        nmcli device wifi rescan 2>/dev/null; exec "$0" ;;
+    "$I_POWER  turn wifi off")  nmcli radio wifi off && note "Wi-Fi off"; exit 0 ;;
+    "$I_UNLINK  disconnect "*)  nmcli connection down id "$current" >/dev/null && note "Disconnected" "$current"; exit 0 ;;
+esac
+
+# Look the pick up by its display line; never parse the display text itself.
+row=$(printf '%s\n' "$rows" | awk -F'\t' -v pick="$choice" '$1 == pick {print; exit}')
+[ -z "$row" ] && exit 0
+ssid=$(printf '%s\n' "$row" | cut -f2)
+secured=$(printf '%s\n' "$row" | cut -f3)
+[ "$ssid" = "$current" ] && exit 0
+
+if nmcli -t -f NAME connection show | grep -Fxq -- "$ssid"; then
+    note "Connecting…" "$ssid"
+    out=$(nmcli connection up id "$ssid" 2>&1)
+elif [ "$secured" = 1 ]; then
+    pass=$(menu --prompt "password › " --placeholder "$ssid" --password --lines 0) || exit 0
+    [ -z "$pass" ] && exit 0
+    note "Connecting…" "$ssid"
+    out=$(nmcli device wifi connect "$ssid" password "$pass" 2>&1)
+else
+    note "Connecting…" "$ssid"
+    out=$(nmcli device wifi connect "$ssid" 2>&1)
+fi
+status=$?
+if [ "$status" -eq 0 ]; then note "Connected" "$ssid"; else note -u critical "Couldn't connect to $ssid" "$out"; fi

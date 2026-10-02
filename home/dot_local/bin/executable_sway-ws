@@ -1,0 +1,20 @@
+#!/bin/sh
+# sway-ws focus|move next|prev — Hyprland-style relative workspaces for sway:
+# go to (or take the focused window to) workspace number N±1, creating it if
+# it doesn't exist yet, so you can walk into as many new workspaces as you like.
+# Never goes below 1. `move` follows the window.
+set -e
+action=$1 dir=$2
+case "$action:$dir" in focus:next|focus:prev|move:next|move:prev) ;; *)
+    echo "usage: sway-ws focus|move next|prev" >&2; exit 2 ;; esac
+
+cur=$(swaymsg -t get_workspaces -r | jq '.[] | select(.focused) | .num')
+[ "$cur" -ge 1 ] 2>/dev/null || cur=1
+if [ "$dir" = next ]; then n=$((cur + 1)); else n=$((cur - 1)); fi
+[ "$n" -lt 1 ] && exit 0
+
+if [ "$action" = move ]; then
+    swaymsg -q "move container to workspace number $n, workspace number $n"
+else
+    swaymsg -q "workspace number $n"
+fi
