@@ -21,6 +21,8 @@ jerkarchy is an opinionated desktop setup for Arch-based systems, built on
 curl -fsSL https://git.fulgid.us/fulgidus/jerkarchy/raw/branch/main/install.sh | bash
 ```
 
+(While the repo is private, clone it and run `./install.sh` instead.)
+
 That's it. That's the product. It installs some packages, runs
 [chezmoi](https://www.chezmoi.io/), and builds one small Zig tool. No ISO, no
 foundation, no patrons. Read the script first — it's short on purpose.
