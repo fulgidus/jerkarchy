@@ -43,7 +43,8 @@ works if the thing actually works — so quality rules below are strict.
 - Never force-push `main` or `develop`. Never rewrite history someone else
   pushed; merge it.
 - Commit messages: imperative summary line (≤ 72 chars), a body explaining
-  *why* when it isn't obvious. Agents add a `Co-Authored-By:` trailer.
+  *why* when it isn't obvious. **No `Co-Authored-By:` or other tool/agent
+  attribution** in commits, PRs, tags, or files. The user is the author.
 - No secrets, ever: Wi-Fi passwords, tokens, keys, `.bak` files, personal
   data. Scan before committing.
 
@@ -204,8 +205,8 @@ live; they change.
 - Report list memberships as facts ("has an entry on the fashware list"),
   attribute the lists' reasons to their authors, and never add contact
   details or anything that facilitates harassment.
-- Keep the hypocrisy section honest and current (who wrote this, where it's
-  mirrored).
+- Keep the hypocrisy section honest and current, without naming or promoting
+  specific AI products.
 - License: X11, `Copyright (c) 2026 Alessio Corsi`. Credit is required;
   using the author's name to promote forks is not allowed. Don't change the
   license text.

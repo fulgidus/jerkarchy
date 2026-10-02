@@ -72,10 +72,9 @@ entries and their sources, and decide for yourself.
 
 ## Full disclosure (the hypocrisy section)
 
-- This repo was vibe-coded with **Claude**, made by **Anthropic** — one of the
-  companies pledging tokens to the Omacom Foundation, and on the fashware list
-  itself. We know. That's the joke, and also the point: the tooling isn't the
-  moat. Anyone can do this.
+- This repo was vibe-coded with an AI assistant from one of the labs pledging
+  tokens to the Omacom Foundation. We know. That's the joke, and also the
+  point: the tooling isn't the moat. Anyone can do this.
 - It's mirrored to **GitHub** (Microsoft, also on the list) purely to burn
   their CI minutes. The source of truth is
   [git.fulgid.us](https://git.fulgid.us/fulgidus/jerkarchy).
