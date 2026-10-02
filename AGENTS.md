@@ -45,7 +45,7 @@ works if the thing actually works — so quality rules below are strict.
 home/             dotfiles (chezmoi naming: dot_, executable_, private_, empty_, *.tmpl)
 src/<tool>/       source of compiled helpers (Zig) + build.sh; binaries are never committed
 install.sh        the whole installer; keep it short and readable
-README.md         user-facing, satirical, sourced (see §8)
+README.md         user-facing, satirical, sourced (see §9)
 AGENTS.md         this file (CLAUDE.md → symlink)
 ```
 
