@@ -30,6 +30,7 @@ free_port() { python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",
 
 QEMU_PID="" HTTP_PID=""
 cleanup() {
+    cp "$RUN/serial.log" "$OUT/serial.log" 2>/dev/null || true
     [ -n "$HTTP_PID" ] && kill "$HTTP_PID" 2>/dev/null || true
     if [ "$KEEP" = 0 ] && [ -n "$QEMU_PID" ]; then kill "$QEMU_PID" 2>/dev/null || true; fi
 }
@@ -73,20 +74,25 @@ qemu-system-x86_64 -enable-kvm -cpu host -smp 4 -m 4096 -nographic \
 QEMU_PID=$!
 
 SSH=(ssh -q -i "$RUN/key" -p "$SSH_PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-     -o ConnectTimeout=5 -o ServerAliveInterval=15 arch@127.0.0.1)
-vm() { "${SSH[@]}" "$@"; }
+     -o ConnectTimeout=5 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 arch@127.0.0.1)
+# Bounded: with QEMU's user networking the TCP connect always succeeds, so a
+# dead guest network hangs ssh at the banner and ConnectTimeout never fires.
+vm() { timeout "${VM_TIMEOUT:-90}" "${SSH[@]}" "$@"; }
 
 for _ in $(seq 1 60); do vm true 2>/dev/null && break; kill -0 "$QEMU_PID" 2>/dev/null || die "QEMU exited (see $RUN/serial.log)"; sleep 3; done
 vm true || die "VM never came up on ssh (see $RUN/serial.log)"
-vm 'sudo cloud-init status --wait >/dev/null 2>&1 || true'
+VM_TIMEOUT=600 vm 'sudo cloud-init status --wait >/dev/null 2>&1 || true'
 # Keep the user's systemd instance and /run/user/<uid> alive between ssh calls
 # (sway, its IPC socket and sway-session.target live there).
 vm 'sudo loginctl enable-linger arch'
+# Stream the guest journal to the serial console: if the guest's network
+# dies, $RUN/serial.log (copied to $OUT) still says why.
+vm "sudo systemd-run -q --unit=jerkarchy-journal sh -c 'journalctl -f -o short-monotonic >/dev/ttyS0 2>&1'"
 say "VM up"
 
 # --- pin pacman to SNAPSHOT, ship the current commit ---------------------------
 say "pinning pacman to SNAPSHOT $SNAPSHOT"
-vm "echo 'Server = https://archive.archlinux.org/repos/${SNAPSHOT//-//}/\$repo/os/\$arch' | sudo tee /etc/pacman.d/mirrorlist >/dev/null
+VM_TIMEOUT=1800 vm "echo 'Server = https://archive.archlinux.org/repos/${SNAPSHOT//-//}/\$repo/os/\$arch' | sudo tee /etc/pacman.d/mirrorlist >/dev/null
     sudo pacman -Syyuu --noconfirm >/dev/null"
 
 git -C "$ROOT" bundle create -q "$RUN/repo.bundle" HEAD
