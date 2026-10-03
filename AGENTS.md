@@ -210,7 +210,10 @@ live; they change.
   `.tmpl` that starts with `{{- $t := index .themes .theme -}}` and uses
   `{{ $t.accent }}` etc. A new theme takes its palette from that theme's own
   upstream project (`source`), not from another distro, and must pass
-  `ci/check.sh` (it renders and validates every theme).
+  `ci/check.sh` (it renders and validates every theme). Flag themes take
+  their colours from the flag's SVG on Wikimedia Commons. Optional fields:
+  `group` (`flags` or `mono`: a sub-list in the theme menu) and `wall`
+  (2–12 colours for the wallpaper gradient, instead of `accent`/`accent2`).
 - **Settings** (`theme`, `wall_*`): defaults in
   `home/.chezmoidata/settings.toml`, the user's values in the `[data]`
   section of `~/.config/chezmoi/chezmoi.toml`. Change them only through

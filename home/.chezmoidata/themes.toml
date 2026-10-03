@@ -346,3 +346,569 @@ ok = "#66800b"
 warn = "#ad8301"
 err = "#af3029"
 ansi = ["#fffcf0", "#af3029", "#66800b", "#ad8301", "#205ea6", "#a02f6f", "#24837b", "#6f6e69", "#b7b5ac", "#af3029", "#66800b", "#ad8301", "#205ea6", "#a02f6f", "#24837b", "#100f0f"]
+
+
+# ---- flags: palettes from each flag's Wikimedia Commons SVG. UI roles
+# use the flag colours, lightened only where text needs contrast; `wall`
+# (the wallpaper gradient) uses them exactly.
+
+[themes.bi]
+title = "Bi"
+source = "bisexual pride flag, Michael Page 1998 (Wikimedia Commons SVG)"
+group = "flags"
+light = false
+bg = "#0e0612"
+bg_alt = "#170a1c"
+border = "#3a2240"
+fg = "#e6d9ec"
+fg_bright = "#ffffff"
+fg_dim = "#a58bb0"
+fg_mute = "#6e5578"
+accent = "#d60270"
+accent2 = "#4f7bff"
+ok = "#6fd39b"
+warn = "#e8c46a"
+err = "#ff4f9a"
+ansi = ["#24152b", "#ff4f7b", "#6fd39b", "#e8c46a", "#4f7bff", "#d60270", "#9b8cff", "#d9cce0", "#5a4463", "#ff7a9c", "#95e2b8", "#f2d690", "#7f9fff", "#e8459a", "#b9aeff", "#ffffff"]
+wall = ["#d60270", "#9b4f96", "#0038a8"]
+
+[themes.queer]
+title = "Queer (Progress Pride)"
+source = "Progress Pride flag, Daniel Quasar 2018 (Wikimedia Commons SVG)"
+group = "flags"
+light = false
+bg = "#0c0c10"
+bg_alt = "#15151b"
+border = "#2e2e38"
+fg = "#e6e6ea"
+fg_bright = "#ffffff"
+fg_dim = "#9a9aa6"
+fg_mute = "#5c5c68"
+accent = "#ffed00"
+accent2 = "#e40303"
+ok = "#2fbf58"
+warn = "#ff8c00"
+err = "#ff4040"
+ansi = ["#1c1c22", "#ff4040", "#2fbf58", "#ffed00", "#4d85ff", "#c05ad9", "#74d7ee", "#e6e6ea", "#7a4a22", "#ff6b6b", "#5fe08a", "#fff36b", "#80a8ff", "#ffafc8", "#a6e8f6", "#ffffff"]
+wall = ["#e40303", "#ff8c00", "#ffed00", "#008026", "#004dff", "#750787", "#ffafc8", "#74d7ee"]
+
+[themes.polyam]
+title = "Polyam"
+source = "polyamory pride flag, Red Howell 2022 / PolyamProud (Wikimedia Commons SVG)"
+group = "flags"
+light = false
+bg = "#130419"
+bg_alt = "#1c0825"
+border = "#340c46"
+fg = "#ece4f0"
+fg_bright = "#ffffff"
+fg_dim = "#a993b5"
+fg_mute = "#6f5a7c"
+accent = "#009fe3"
+accent2 = "#e50051"
+ok = "#5fd38d"
+warn = "#fcbf00"
+err = "#ff3d7f"
+ansi = ["#2a1036", "#ff3d7f", "#5fd38d", "#fcbf00", "#009fe3", "#b05cd6", "#4fc8f0", "#e0d6e6", "#5e4470", "#ff6f9d", "#8be3ad", "#ffd34d", "#4dbfff", "#c98ae6", "#8adaf5", "#ffffff"]
+wall = ["#009fe3", "#e50051", "#340c46", "#fcbf00"]
+
+[themes.trans]
+title = "Trans"
+source = "transgender pride flag, Monica Helms 1999 (Wikimedia Commons SVG)"
+group = "flags"
+light = false
+bg = "#0b1016"
+bg_alt = "#121a22"
+border = "#2a3a48"
+fg = "#eef2f5"
+fg_bright = "#ffffff"
+fg_dim = "#9fb0bd"
+fg_mute = "#5f707d"
+accent = "#5bcefa"
+accent2 = "#f5a9b8"
+ok = "#8fe0b0"
+warn = "#f5d48a"
+err = "#f57a95"
+ansi = ["#1a2530", "#f57a95", "#8fe0b0", "#f5d48a", "#5bcefa", "#f5a9b8", "#9fe3fb", "#eef2f5", "#4a5d6c", "#f99bb0", "#b0ebc8", "#f9e2ae", "#8adcfb", "#f9c4ce", "#c2edfc", "#ffffff"]
+wall = ["#5bcefa", "#f5a9b8", "#ffffff"]
+
+[themes.antifa]
+title = "Antifa"
+source = "Antifaschistische Aktion logo, 1932 (Wikimedia Commons SVG): red, black, white"
+group = "flags"
+light = false
+bg = "#0a0a0a"
+bg_alt = "#141414"
+border = "#3a1212"
+fg = "#e6e6e6"
+fg_bright = "#ffffff"
+fg_dim = "#9a9a9a"
+fg_mute = "#5a5a5a"
+accent = "#ff0000"
+accent2 = "#ffffff"
+ok = "#ffffff"
+warn = "#ff8080"
+err = "#ff0000"
+ansi = ["#1e1e1e", "#ff0000", "#d0d0d0", "#ff8080", "#a0a0a0", "#ff4040", "#c0c0c0", "#e6e6e6", "#4a4a4a", "#ff3333", "#e6e6e6", "#ffaaaa", "#bdbdbd", "#ff6666", "#dadada", "#ffffff"]
+wall = ["#ff0000", "#000000"]
+
+# ---- monochrome: one hue per theme, every role a shade of it (emphasis
+# by brightness, like a phosphor terminal), each in dark and light.
+
+[themes.mono-green-dark]
+title = "Mono green (dark)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = false
+bg = "#070e07"
+bg_alt = "#0c180c"
+border = "#1e3e1e"
+fg = "#a5d4a5"
+fg_bright = "#d6ebd6"
+fg_dim = "#5aaf5a"
+fg_mute = "#387538"
+accent = "#29ff29"
+accent2 = "#99ff99"
+ok = "#29ff29"
+warn = "#99ff99"
+err = "#99ff99"
+ansi = ["#142914", "#00d600", "#00ff00", "#29ff29", "#00eb00", "#14ff14", "#47ff47", "#a5d4a5", "#326732", "#1fff1f", "#47ff47", "#70ff70", "#33ff33", "#5cff5c", "#8fff8f", "#e3f2e3"]
+
+[themes.mono-green-light]
+title = "Mono green (light)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = true
+bg = "#eef7ee"
+bg_alt = "#ddeedd"
+border = "#b3dbb3"
+fg = "#244c24"
+fg_bright = "#112211"
+fg_dim = "#428a42"
+fg_mute = "#68b668"
+accent = "#009900"
+accent2 = "#004700"
+ok = "#009900"
+warn = "#004700"
+err = "#004700"
+ansi = ["#c1e1c1", "#00d600", "#00ad00", "#00c200", "#009900", "#00eb00", "#00b800", "#244c24", "#98cd98", "#00ad00", "#008500", "#009900", "#007000", "#00c200", "#008f00", "#0d1c0d"]
+
+[themes.mono-amber-dark]
+title = "Mono amber (dark)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = false
+bg = "#0e0c07"
+bg_alt = "#18140c"
+border = "#3e341e"
+fg = "#d4c5a5"
+fg_bright = "#ebe4d6"
+fg_dim = "#af945a"
+fg_mute = "#756238"
+accent = "#ffae00"
+accent2 = "#ffd270"
+ok = "#ffae00"
+warn = "#ffd270"
+err = "#ffd270"
+ansi = ["#292314", "#d69200", "#ffae00", "#ffbb29", "#eba000", "#ffb514", "#ffc547", "#d4c5a5", "#675632", "#ffb81f", "#ffc547", "#ffd270", "#ffbe33", "#ffcb5c", "#ffdb8f", "#f2ede3"]
+
+[themes.mono-amber-light]
+title = "Mono amber (light)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = true
+bg = "#f7f4ee"
+bg_alt = "#eee9dd"
+border = "#dbceb3"
+fg = "#4c3f24"
+fg_bright = "#221d11"
+fg_dim = "#8a7342"
+fg_mute = "#b69d68"
+accent = "#b87d00"
+accent2 = "#664600"
+ok = "#b87d00"
+warn = "#664600"
+err = "#664600"
+ansi = ["#e1d7c1", "#d69200", "#ad7600", "#c28400", "#996900", "#eba000", "#b87d00", "#4c3f24", "#cdbc98", "#ad7600", "#855b00", "#996900", "#704d00", "#c28400", "#8f6200", "#1c170d"]
+
+[themes.mono-white-dark]
+title = "Mono white (dark)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = false
+bg = "#0a0a0a"
+bg_alt = "#121212"
+border = "#2e2e2e"
+fg = "#bdbdbd"
+fg_bright = "#e0e0e0"
+fg_dim = "#858585"
+fg_mute = "#575757"
+accent = "#ebebeb"
+accent2 = "#e6e6e6"
+ok = "#ebebeb"
+warn = "#e6e6e6"
+err = "#e6e6e6"
+ansi = ["#1f1f1f", "#6b6b6b", "#808080", "#949494", "#757575", "#8a8a8a", "#a3a3a3", "#bdbdbd", "#4c4c4c", "#8f8f8f", "#a3a3a3", "#b8b8b8", "#999999", "#adadad", "#c7c7c7", "#ebebeb"]
+
+[themes.mono-white-light]
+title = "Mono white (light)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = true
+bg = "#f2f2f2"
+bg_alt = "#e6e6e6"
+border = "#c7c7c7"
+fg = "#383838"
+fg_bright = "#1a1a1a"
+fg_dim = "#666666"
+fg_mute = "#8f8f8f"
+accent = "#141414"
+accent2 = "#0f0f0f"
+ok = "#141414"
+warn = "#0f0f0f"
+err = "#0f0f0f"
+ansi = ["#d1d1d1", "#6b6b6b", "#575757", "#616161", "#4c4c4c", "#757575", "#5c5c5c", "#383838", "#b2b2b2", "#575757", "#424242", "#4c4c4c", "#383838", "#616161", "#474747", "#141414"]
+# The accent is near-black, so the wallpaper uses mid greys instead.
+wall = ["#8c8c8c", "#c4c4c4"]
+
+[themes.mono-blue-dark]
+title = "Mono blue (dark)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = false
+bg = "#070a0e"
+bg_alt = "#0c1118"
+border = "#1e2d3e"
+fg = "#a5bbd4"
+fg_bright = "#d6e0eb"
+fg_dim = "#5a82af"
+fg_mute = "#385575"
+accent = "#3d98ff"
+accent2 = "#add3ff"
+ok = "#3d98ff"
+warn = "#add3ff"
+err = "#add3ff"
+ansi = ["#141e29", "#0064d6", "#0077ff", "#298dff", "#006deb", "#1482ff", "#479dff", "#a5bbd4", "#324b67", "#1f87ff", "#479dff", "#70b3ff", "#3392ff", "#5ca8ff", "#8fc3ff", "#e3eaf2"]
+
+[themes.mono-blue-light]
+title = "Mono blue (light)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = true
+bg = "#eef2f7"
+bg_alt = "#dde5ee"
+border = "#b3c6db"
+fg = "#24374c"
+fg_bright = "#111922"
+fg_dim = "#42648a"
+fg_mute = "#688cb6"
+accent = "#005fcc"
+accent2 = "#00397a"
+ok = "#005fcc"
+warn = "#00397a"
+err = "#00397a"
+ansi = ["#c1d0e1", "#0064d6", "#0051ad", "#005ac2", "#004799", "#006deb", "#0056b8", "#24374c", "#98b1cd", "#0051ad", "#003e85", "#004799", "#003470", "#005ac2", "#00438f", "#0d141c"]
+
+[themes.mono-grey-dark]
+title = "Mono grey (dark)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = false
+bg = "#0a0a0a"
+bg_alt = "#121212"
+border = "#2e2e2e"
+fg = "#bdbdbd"
+fg_bright = "#e0e0e0"
+fg_dim = "#858585"
+fg_mute = "#575757"
+accent = "#a8a8a8"
+accent2 = "#e0e0e0"
+ok = "#a8a8a8"
+warn = "#e0e0e0"
+err = "#e0e0e0"
+ansi = ["#1f1f1f", "#6b6b6b", "#808080", "#949494", "#757575", "#8a8a8a", "#a3a3a3", "#bdbdbd", "#4c4c4c", "#8f8f8f", "#a3a3a3", "#b8b8b8", "#999999", "#adadad", "#c7c7c7", "#ebebeb"]
+
+[themes.mono-grey-light]
+title = "Mono grey (light)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = true
+bg = "#f2f2f2"
+bg_alt = "#e6e6e6"
+border = "#c7c7c7"
+fg = "#383838"
+fg_bright = "#1a1a1a"
+fg_dim = "#666666"
+fg_mute = "#8f8f8f"
+accent = "#666666"
+accent2 = "#3d3d3d"
+ok = "#666666"
+warn = "#3d3d3d"
+err = "#3d3d3d"
+ansi = ["#d1d1d1", "#6b6b6b", "#575757", "#616161", "#4c4c4c", "#757575", "#5c5c5c", "#383838", "#b2b2b2", "#575757", "#424242", "#4c4c4c", "#383838", "#616161", "#474747", "#141414"]
+
+[themes.mono-darkgrey-dark]
+title = "Mono dark grey (dark)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = false
+bg = "#0a0a0a"
+bg_alt = "#121212"
+border = "#2e2e2e"
+fg = "#bdbdbd"
+fg_bright = "#e0e0e0"
+fg_dim = "#858585"
+fg_mute = "#575757"
+accent = "#757575"
+accent2 = "#adadad"
+ok = "#757575"
+warn = "#adadad"
+err = "#adadad"
+ansi = ["#1f1f1f", "#6b6b6b", "#808080", "#949494", "#757575", "#8a8a8a", "#a3a3a3", "#bdbdbd", "#4c4c4c", "#8f8f8f", "#a3a3a3", "#b8b8b8", "#999999", "#adadad", "#c7c7c7", "#ebebeb"]
+
+[themes.mono-darkgrey-light]
+title = "Mono dark grey (light)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = true
+bg = "#f2f2f2"
+bg_alt = "#e6e6e6"
+border = "#c7c7c7"
+fg = "#383838"
+fg_bright = "#1a1a1a"
+fg_dim = "#666666"
+fg_mute = "#8f8f8f"
+accent = "#3d3d3d"
+accent2 = "#141414"
+ok = "#3d3d3d"
+warn = "#141414"
+err = "#141414"
+ansi = ["#d1d1d1", "#6b6b6b", "#575757", "#616161", "#4c4c4c", "#757575", "#5c5c5c", "#383838", "#b2b2b2", "#575757", "#424242", "#4c4c4c", "#383838", "#616161", "#474747", "#141414"]
+
+[themes.mono-yellow-dark]
+title = "Mono yellow (dark)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = false
+bg = "#0e0d07"
+bg_alt = "#18160c"
+border = "#3e3a1e"
+fg = "#d4cea5"
+fg_bright = "#ebe8d6"
+fg_dim = "#afa45a"
+fg_mute = "#756d38"
+accent = "#ffe433"
+accent2 = "#fff3a3"
+ok = "#ffe433"
+warn = "#fff3a3"
+err = "#fff3a3"
+ansi = ["#292614", "#d6ba00", "#ffdd00", "#ffe229", "#ebcb00", "#ffe014", "#ffe747", "#d4cea5", "#676032", "#ffe11f", "#ffe747", "#ffec70", "#ffe433", "#ffe95c", "#fff08f", "#f2f0e3"]
+
+[themes.mono-yellow-light]
+title = "Mono yellow (light)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = true
+bg = "#f7f6ee"
+bg_alt = "#eeecdd"
+border = "#dbd5b3"
+fg = "#4c4624"
+fg_bright = "#222011"
+fg_dim = "#8a8042"
+fg_mute = "#b6ac68"
+accent = "#ad9600"
+accent2 = "#5c5000"
+ok = "#ad9600"
+warn = "#5c5000"
+err = "#5c5000"
+ansi = ["#e1ddc1", "#d6ba00", "#ad9600", "#c2a800", "#998500", "#ebcb00", "#b89f00", "#4c4624", "#cdc698", "#ad9600", "#857300", "#998500", "#706100", "#c2a800", "#8f7c00", "#1c1a0d"]
+
+[themes.mono-red-dark]
+title = "Mono red (dark)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = false
+bg = "#0e0707"
+bg_alt = "#180c0c"
+border = "#3e1e1e"
+fg = "#d4a5a5"
+fg_bright = "#ebd6d6"
+fg_dim = "#af5a5a"
+fg_mute = "#753838"
+accent = "#ff3333"
+accent2 = "#ffa3a3"
+ok = "#ff3333"
+warn = "#ffa3a3"
+err = "#ffa3a3"
+ansi = ["#291414", "#d60000", "#ff0000", "#ff2929", "#eb0000", "#ff1414", "#ff4747", "#d4a5a5", "#673232", "#ff1f1f", "#ff4747", "#ff7070", "#ff3333", "#ff5c5c", "#ff8f8f", "#f2e3e3"]
+
+[themes.mono-red-light]
+title = "Mono red (light)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = true
+bg = "#f7eeee"
+bg_alt = "#eedddd"
+border = "#dbb3b3"
+fg = "#4c2424"
+fg_bright = "#221111"
+fg_dim = "#8a4242"
+fg_mute = "#b66868"
+accent = "#d60000"
+accent2 = "#850000"
+ok = "#d60000"
+warn = "#850000"
+err = "#850000"
+ansi = ["#e1c1c1", "#d60000", "#ad0000", "#c20000", "#990000", "#eb0000", "#b80000", "#4c2424", "#cd9898", "#ad0000", "#850000", "#990000", "#700000", "#c20000", "#8f0000", "#1c0d0d"]
+
+[themes.mono-cyan-dark]
+title = "Mono cyan (dark)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = false
+bg = "#070d0e"
+bg_alt = "#0c1618"
+border = "#1e393e"
+fg = "#a5ccd4"
+fg_bright = "#d6e8eb"
+fg_dim = "#5aa1af"
+fg_mute = "#386b75"
+accent = "#1ad9ff"
+accent2 = "#8aebff"
+ok = "#1ad9ff"
+warn = "#8aebff"
+err = "#8aebff"
+ansi = ["#142629", "#00b2d6", "#00d4ff", "#29dbff", "#00c3eb", "#14d8ff", "#47e0ff", "#a5ccd4", "#325e67", "#1fdaff", "#47e0ff", "#70e7ff", "#33ddff", "#5ce4ff", "#8fecff", "#e3eff2"]
+
+[themes.mono-cyan-light]
+title = "Mono cyan (light)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = true
+bg = "#eef5f7"
+bg_alt = "#ddebee"
+border = "#b3d4db"
+fg = "#24454c"
+fg_bright = "#111f22"
+fg_dim = "#427e8a"
+fg_mute = "#68a9b6"
+accent = "#0088a3"
+accent2 = "#004452"
+ok = "#0088a3"
+warn = "#004452"
+err = "#004452"
+ansi = ["#c1dce1", "#00b2d6", "#0090ad", "#00a1c2", "#007f99", "#00c3eb", "#0099b8", "#24454c", "#98c4cd", "#0090ad", "#006e85", "#007f99", "#005d70", "#00a1c2", "#00778f", "#0d191c"]
+
+[themes.mono-purple-dark]
+title = "Mono purple (dark)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = false
+bg = "#0a070e"
+bg_alt = "#120c18"
+border = "#2e1e3e"
+fg = "#bda5d4"
+fg_bright = "#e0d6eb"
+fg_dim = "#855aaf"
+fg_mute = "#573875"
+accent = "#b266ff"
+accent2 = "#e5ccff"
+ok = "#b266ff"
+warn = "#e5ccff"
+err = "#e5ccff"
+ansi = ["#1f1429", "#6b00d6", "#7f00ff", "#9429ff", "#7500eb", "#8a14ff", "#a347ff", "#bda5d4", "#4c3267", "#8f1fff", "#a347ff", "#b870ff", "#9933ff", "#ad5cff", "#c78fff", "#ebe3f2"]
+
+[themes.mono-purple-light]
+title = "Mono purple (light)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = true
+bg = "#f2eef7"
+bg_alt = "#e6ddee"
+border = "#c7b3db"
+fg = "#38244c"
+fg_bright = "#191122"
+fg_dim = "#66428a"
+fg_mute = "#8f68b6"
+accent = "#7300e6"
+accent2 = "#4a0094"
+ok = "#7300e6"
+warn = "#4a0094"
+err = "#4a0094"
+ansi = ["#d1c1e1", "#6b00d6", "#5700ad", "#6100c2", "#4c0099", "#7500eb", "#5c00b8", "#38244c", "#b298cd", "#5700ad", "#420085", "#4c0099", "#380070", "#6100c2", "#47008f", "#140d1c"]
+
+[themes.mono-pink-dark]
+title = "Mono pink (dark)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = false
+bg = "#0e070b"
+bg_alt = "#180c13"
+border = "#3e1e31"
+fg = "#d4a5c1"
+fg_bright = "#ebd6e2"
+fg_dim = "#af5a8c"
+fg_mute = "#75385c"
+accent = "#ff66bf"
+accent2 = "#ffccea"
+ok = "#ff66bf"
+warn = "#ffccea"
+err = "#ffccea"
+ansi = ["#291420", "#d6007d", "#ff0095", "#ff29a6", "#eb0089", "#ff149d", "#ff47b2", "#d4a5c1", "#673251", "#ff1fa2", "#ff47b2", "#ff70c3", "#ff33aa", "#ff5cbb", "#ff8fd0", "#f2e3ec"]
+
+[themes.mono-pink-light]
+title = "Mono pink (light)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = true
+bg = "#f7eef3"
+bg_alt = "#eedde7"
+border = "#dbb3ca"
+fg = "#4c243b"
+fg_bright = "#22111b"
+fg_dim = "#8a426c"
+fg_mute = "#b66895"
+accent = "#e60086"
+accent2 = "#940056"
+ok = "#e60086"
+warn = "#940056"
+err = "#940056"
+ansi = ["#e1c1d4", "#d6007d", "#ad0065", "#c20071", "#990059", "#eb0089", "#b8006b", "#4c243b", "#cd98b7", "#ad0065", "#85004d", "#990059", "#700041", "#c20071", "#8f0053", "#1c0d16"]
+
+[themes.mono-orange-dark]
+title = "Mono orange (dark)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = false
+bg = "#0e0a07"
+bg_alt = "#18110c"
+border = "#3e2b1e"
+fg = "#d4b9a5"
+fg_bright = "#ebdfd6"
+fg_dim = "#af7d5a"
+fg_mute = "#755238"
+accent = "#ff7c1f"
+accent2 = "#ffbe8f"
+ok = "#ff7c1f"
+warn = "#ffbe8f"
+err = "#ffbe8f"
+ansi = ["#291d14", "#d65900", "#ff6a00", "#ff8229", "#eb6200", "#ff7614", "#ff9447", "#d4b9a5", "#674832", "#ff7c1f", "#ff9447", "#ffac70", "#ff8833", "#ffa05c", "#ffbe8f", "#f2e9e3"]
+
+[themes.mono-orange-light]
+title = "Mono orange (light)"
+source = "jerkarchy (one hue, shades only)"
+group = "mono"
+light = true
+bg = "#f7f2ee"
+bg_alt = "#eee4dd"
+border = "#dbc4b3"
+fg = "#4c3524"
+fg_bright = "#221811"
+fg_dim = "#8a6042"
+fg_mute = "#b68868"
+accent = "#cc5500"
+accent2 = "#7a3300"
+ok = "#cc5500"
+warn = "#7a3300"
+err = "#7a3300"
+ansi = ["#e1cec1", "#d65900", "#ad4800", "#c25100", "#994000", "#eb6200", "#b84d00", "#4c3524", "#cdae98", "#ad4800", "#853700", "#994000", "#702f00", "#c25100", "#8f3c00", "#1c130d"]

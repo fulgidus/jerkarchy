@@ -48,6 +48,9 @@ var opt_contrast: f64 = 1.6; // accent strength (user default 1.6); 0.5 ≈ the 
 var col_bg: Rgb = hex(0x0a0a0f);
 var col_a: Rgb = hex(0x00f0ff);
 var col_b: Rgb = hex(0xff2b6d);
+// --stops: a multi-colour gradient (flags, rainbows) replacing --a/--b.
+var stops: [12]Rgb = undefined;
+var n_stops: usize = 0;
 
 fn hex(v: u32) Rgb {
     return .{
@@ -63,7 +66,7 @@ fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
 }
 
 fn usage() noreturn {
-    std.debug.print("usage: jerkwall [--fps N] [--points N] [--speed X] [--contrast X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB] [--at S] [--frame W H FILE.png]\n", .{});
+    std.debug.print("usage: jerkwall [--fps N] [--points N] [--speed X] [--contrast X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB] [--stops RRGGBB,RRGGBB,...] [--at S] [--frame W H FILE.png]\n", .{});
     std.process.exit(2);
 }
 
@@ -295,7 +298,15 @@ fn facetRgb(tr: Tri, fw: f64, fh: f64) Rgb {
         0.25 * @sin((0.7 * u - v) * 29.0 + t * 0.13);
     const k = std.math.clamp((0.06 + 0.39 * n1 * n2 + 0.12 * fine) * opt_contrast, 0, 0.9);
     // Hue wanders between the two accents over minutes, varying across the screen.
-    const h = std.math.clamp(0.5 + 0.5 * @sin(t * 0.013 + u * 1.7 - v * 1.1), 0, 1);
+    const wave = @sin(t * 0.013 + u * 1.7 - v * 1.1);
+    if (n_stops >= 2) {
+        // acos turns the sine into a triangle wave, so every stop gets the
+        // same share of the screen (a plain sine lingers on the end colours).
+        const pos = std.math.acos(-wave) / std.math.pi * @as(f64, @floatFromInt(n_stops - 1));
+        const i: usize = @min(@as(usize, @intFromFloat(@floor(pos))), n_stops - 2);
+        return mix(col_bg, mix(stops[i], stops[i + 1], std.math.clamp(pos - @as(f64, @floatFromInt(i)), 0, 1)), k);
+    }
+    const h = std.math.clamp(0.5 + 0.5 * wave, 0, 1);
     return mix(col_bg, mix(col_a, col_b, h), k);
 }
 
@@ -864,7 +875,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
             seq_dir = argv[i + 2];
             i += 1;
         } else if (std.mem.eql(u8, k, "--fps")) {
-            opt_fps = std.math.clamp(std.fmt.parseFloat(f64, v) catch usage(), 0.1, 30);
+            opt_fps = std.math.clamp(std.fmt.parseFloat(f64, v) catch usage(), 0.1, 60);
         } else if (std.mem.eql(u8, k, "--points")) {
             opt_points = std.math.clamp(std.fmt.parseInt(usize, v, 10) catch usage(), 3, 2000);
         } else if (std.mem.eql(u8, k, "--contrast")) {
@@ -877,6 +888,15 @@ pub fn main(init: std.process.Init.Minimal) !void {
             col_a = parseHex(v);
         } else if (std.mem.eql(u8, k, "--b")) {
             col_b = parseHex(v);
+        } else if (std.mem.eql(u8, k, "--stops")) {
+            n_stops = 0;
+            var it = std.mem.splitScalar(u8, v, ',');
+            while (it.next()) |hx| {
+                if (n_stops == stops.len) usage();
+                stops[n_stops] = parseHex(hx);
+                n_stops += 1;
+            }
+            if (n_stops < 2) usage();
         } else usage();
     }
 
