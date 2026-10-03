@@ -36,7 +36,8 @@ seat * xcursor_theme sweet-cursors 24
 # ------------------------------------------------------------------
 # Look
 # ------------------------------------------------------------------
-output * bg ~/.local/share/backgrounds/wallpaper.png fill #0a0a0f
+# No `output * bg`: jerkwall (below) is the wallpaper; swaybg would compete
+# with it on the background layer and can end up on top after a reload.
 font pango:JetBrainsMono Nerd Font 10
 default_border pixel 2
 default_floating_border pixel 2
@@ -281,6 +282,8 @@ bindsym --locked XF86MonBrightnessDown exec brightnessctl set 5%-
 # swaybar_command as a bare program name (no shell), so arguments break it.
 exec waybar -c ~/.config/waybar/sway.jsonc
 exec autotiling
+# Live Delaunay wallpaper (src/jerkwall): ~3% CPU at 4 fps, 1 fps on power-saver.
+exec $bin/jerkwall
 # XDG autostart entries (/etc/xdg/autostart, ~/.config/autostart): sway doesn't
 # run them itself. sway-session.target (~/.config/systemd/user) pulls in
 # systemd's xdg-desktop-autostart.target, which honours OnlyShowIn/NotShowIn.

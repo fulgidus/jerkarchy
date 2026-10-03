@@ -111,7 +111,8 @@ fi
 
 step "repo hygiene"
 # Raw Nerd Font (private-use) glyphs get stripped by editors: use escapes.
-if grep -rlP '[\x{E000}-\x{F8FF}\x{F0000}-\x{FFFFD}]' home install.sh ci src README.md AGENTS.md ROADMAP.md 2>/dev/null >"$TMP/pua"; [ -s "$TMP/pua" ]; then
+# Only tracked text files (build outputs and binaries are ignored by git).
+if git ls-files -z | xargs -0 grep -lIP '[\x{E000}-\x{F8FF}\x{F0000}-\x{FFFFD}]' 2>/dev/null >"$TMP/pua"; [ -s "$TMP/pua" ]; then
     bad "raw private-use glyphs in:"; sed 's/^/        /' "$TMP/pua"
 else ok "no raw private-use glyphs"; fi
 if grep -rnEi 'BEGIN [A-Z ]*PRIVATE KEY|(api[_-]?key|secret|token|passw(or)?d)[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9/+_-]{12,}' \
@@ -127,6 +128,22 @@ else ok "no backup files"; fi
 if [ -f SNAPSHOT ] && grep -qxE '[0-9]{4}-[0-9]{2}-[0-9]{2}' SNAPSHOT; then
     ok "SNAPSHOT = $(cat SNAPSHOT)"
 else bad "SNAPSHOT missing or not YYYY-MM-DD"; fi
+
+step "zig: jerkwall"
+if [ "$QUICK" = 1 ]; then
+    skip "--quick"
+elif need zig && need wayland-scanner; then
+    if (cd src/jerkwall && mkdir -p "$TMP/jw-gen" && for p in wlr-layer-shell-unstable-v1 xdg-shell; do
+            wayland-scanner client-header "protocol/$p.xml" "$TMP/jw-gen/$p-client-protocol.h" &&
+            wayland-scanner private-code "protocol/$p.xml" "$TMP/jw-gen/$p-protocol.c" || exit 1; done &&
+        zig build-exe main.zig "$TMP"/jw-gen/*.c -I"$TMP/jw-gen" -I/usr/include -L/usr/lib \
+            -target x86_64-linux-gnu -lc -lwayland-client -O ReleaseFast -femit-bin="$TMP/jerkwall") >"$TMP/zig" 2>&1; then
+        ok "build"
+        if "$TMP/jerkwall" --fps x >/dev/null 2>&1; then bad "rejects bad --fps"; else ok "rejects bad --fps"; fi
+    else
+        bad "build"; sed 's/^/        /' "$TMP/zig"
+    fi
+fi
 
 step "zig: sway-binds"
 if [ "$QUICK" = 1 ]; then
