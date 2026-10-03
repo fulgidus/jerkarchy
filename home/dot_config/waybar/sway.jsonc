@@ -39,7 +39,7 @@
     "format-source-muted": "mic muted",
     "tooltip-format": "{desc}\n{volume}% · {format_source}\nclick: mute · right-click: mixer · scroll: ±5%",
     "on-click": "$HOME/.local/bin/volume mute",
-    "on-click-right": "pwvucontrol",
+    "on-click-right": "$HOME/.local/bin/audio-mixer",
     "scroll-step": 5
   },
   "backlight": { "format": "{icon} {percent}%", "format-icons": ["\udb80\udcde", "\udb80\udcdf", "\udb80\udce0"] },

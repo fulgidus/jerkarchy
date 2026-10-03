@@ -54,7 +54,7 @@ client.urgent           #ff2b6d  #0a0a0f  #e5e1e7  #ff2b6d   #ff2b6d
 for_window [app_id="sway-help"] floating enable, resize set 1100 800, move position center
 for_window [app_id="tui-float"] floating enable, resize set 900 600, move position center
 for_window [app_id="blueman-manager"] floating enable
-for_window [app_id="com.saivert.pwvucontrol|pavucontrol|org.pulseaudio.pavucontrol"] floating enable, resize set 900 600, move position center
+for_window [app_id="audio-mixer"] floating enable, border pixel 1, sticky enable
 for_window [window_role="pop-up"] floating enable
 for_window [window_type="dialog"] floating enable
 
@@ -91,8 +91,8 @@ bindsym $mod+w exec librewolf
 bindsym $mod+c exec $bin/open-editor
 #: file manager (thunar)
 bindsym $mod+e exec thunar
-#: audio mixer (pwvucontrol)
-bindsym Ctrl+Alt+v exec pwvucontrol
+#: audio mixer (wiremix drop-down)
+bindsym Ctrl+Alt+v exec $bin/audio-mixer
 #: clipboard history: paste an entry
 bindsym $mod+v exec pkill fuzzel || cliphist list | fuzzel --dmenu | cliphist decode | wl-copy
 #: clipboard history: delete an entry

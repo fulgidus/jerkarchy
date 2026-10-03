@@ -58,7 +58,9 @@ fi
 step "sway config"
 SWAYCFG="$FAKEHOME/.config/sway/config"
 if need sway; then
-    if HOME="$FAKEHOME" sway -C -c "$SWAYCFG" >"$TMP/sway" 2>&1 && ! grep -qiE 'error|warn' "$TMP/sway"; then
+    # Headless backend: sway -C still creates a backend, and CI/VMs have no seat.
+    if HOME="$FAKEHOME" WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 \
+            sway -C -c "$SWAYCFG" >"$TMP/sway" 2>&1 && ! grep -qiE 'error|warn' "$TMP/sway"; then
         ok "sway -C"
     else
         bad "sway -C"; sed 's/^/        /' "$TMP/sway"
@@ -100,6 +102,12 @@ for case in "Discharging 78" "Discharging 3" "Charging 54" "Full 100" "Not_charg
         bad "$st ${cap:-<empty>}%"; sed 's/^/        /' "$TMP/err"
     fi
 done
+
+if XDG_RUNTIME_DIR="$TMP" HOME="$FAKEHOME" "$BB" "$TMP/no-such-battery" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert "nobattery" in d["class"]' 2>"$TMP/err"; then
+    ok "no battery (desktop/VM): profile only"
+else
+    bad "no battery"; sed 's/^/        /' "$TMP/err"
+fi
 
 step "repo hygiene"
 # Raw Nerd Font (private-use) glyphs get stripped by editors: use escapes.

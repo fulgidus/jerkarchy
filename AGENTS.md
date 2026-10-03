@@ -57,6 +57,7 @@ src/<tool>/       source of compiled helpers (Zig) + build.sh; binaries are neve
 install.sh        the whole installer; keep it short and readable
 SNAPSHOT          Arch Linux Archive date (YYYY-MM-DD) that builds install from
 ci/check.sh       all automated checks (local + GitHub Actions)
+ci/vm-test.sh     end-to-end install test in a QEMU VM (before every release)
 .github/          CI workflow (runs on main only; GitHub sees nothing else)
 README.md         user-facing, satirical, sourced (see §9)
 ROADMAP.md        what gets built, in which release, with which tools
@@ -98,11 +99,16 @@ live; they change.
   Framework patrons), network-manager-applet (IBM → Red Hat), iwd/ConnMan
   (Intel), Ghostty, CachyOS (Framework sponsorship), mise (Omacom Foundation).
   Clean — sway/wlroots, waybar, fuzzel, mako, nwg-drawer, autotiling, wezterm,
-  starship, swaylock, blueman, pwvucontrol, COSMIC.
+  starship, swaylock, blueman, pwvucontrol (not in Arch repos), wiremix, shellcheck,
+  COSMIC. Accepted as test-only tooling despite a hit: QEMU (Red Hat → IBM).
 - **Check that a program exists before wiring it in** (`command -v`). Do not
   copy app names from old configs (this repo already shipped dead binds to
   `codium`, `blueman`, `pavucontrol`). If something isn't installed, either
   ask the user to install it or add a visible fallback — never a silent no-op.
+- **Packages must be in Arch's official repos** (`core`/`extra`): the user's
+  machine has CachyOS repos, plain Arch doesn't. Check against the pinned
+  `SNAPSHOT` database, not the local `pacman -Si`. (pwvucontrol was CachyOS-only
+  and broke install.sh; the VM test caught it.)
 - Never install system packages yourself; the user runs `sudo`. Give them the
   exact command.
 
@@ -117,6 +123,12 @@ live; they change.
   same script on `main`, inside an Arch container pinned to `SNAPSHOT`. When
   you add a check, prove it can fail (break the thing once in a throwaway
   worktree).
+- **`ci/vm-test.sh` must pass before every release** (and after any change to
+  `install.sh` or the package list). It boots the pinned Arch cloud image in
+  QEMU/KVM, pins pacman to `SNAPSHOT`, runs `install.sh` from the current
+  commit, starts sway headless and checks the desktop comes up, plus a
+  screenshot. Its first run caught three real bugs (a CachyOS-only package,
+  missing Xwayland, missing pipewire-pulse) that local checks never could.
 - **`SNAPSHOT`** holds the Arch Linux Archive date that CI (and later the VM
   test and installer) install from. Bump it deliberately, never by accident.
 

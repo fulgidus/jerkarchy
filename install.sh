@@ -12,11 +12,11 @@ command -v pacman >/dev/null || { echo "jerkarchy needs an Arch-based system." >
 [ "$(id -u)" -ne 0 ] || { echo "run as your user, not root (sudo is used when needed)." >&2; exit 1; }
 
 PKGS=(
-  sway swaybg swayidle swaylock autotiling xdg-desktop-portal-wlr xdg-desktop-portal-gtk
+  sway swaybg swayidle swaylock autotiling xorg-xwayland xdg-desktop-portal-wlr xdg-desktop-portal-gtk
   waybar fuzzel mako nwg-drawer polkit-gnome
   wezterm fish starship ttf-jetbrains-mono-nerd
   grim slurp wl-clipboard cliphist jq libnotify
-  playerctl brightnessctl wireplumber pwvucontrol power-profiles-daemon
+  pipewire pipewire-pulse wireplumber playerctl brightnessctl wiremix power-profiles-daemon
   networkmanager bluez bluez-utils
   chezmoi git zig
 )
