@@ -6,7 +6,7 @@
 //! whose hue wanders over minutes. Drawn on the CPU into shared memory on the
 //! layer-shell *background* layer, a few frames per second: no GPU, little power.
 //!
-//!   jerkwall [--fps N] [--points N] [--speed X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB]
+//!   jerkwall [--fps N] [--points N] [--speed X] [--contrast X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB]
 //!   jerkwall [same options] --frame W H FILE.png    render "now" to a PNG and exit
 //!
 //! The scene is a pure function of the wall clock (fixed seed), so --frame
@@ -37,6 +37,7 @@ const Rgb = struct { r: f64, g: f64, b: f64 };
 var opt_fps: f64 = 4;
 var opt_points: usize = 140;
 var opt_speed: f64 = 1.0;
+var opt_contrast: f64 = 1.0; // accent strength; 0.5 ≈ the first, subtler draft
 var col_bg: Rgb = hex(0x0a0a0f);
 var col_a: Rgb = hex(0x00f0ff);
 var col_b: Rgb = hex(0xff2b6d);
@@ -55,7 +56,7 @@ fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
 }
 
 fn usage() noreturn {
-    std.debug.print("usage: jerkwall [--fps N] [--points N] [--speed X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB] [--frame W H FILE.png]\n", .{});
+    std.debug.print("usage: jerkwall [--fps N] [--points N] [--speed X] [--contrast X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB] [--frame W H FILE.png]\n", .{});
     std.process.exit(2);
 }
 
@@ -228,10 +229,14 @@ fn pack(col: Rgb) u32 {
 
 /// Colour of a triangle with centroid (u, v) in [0,1]² at time t.
 fn facet(u: f64, v: f64, t: f64) u32 {
-    // Slow noise field → how much accent shows (mostly dark, subtle).
+    // Slow noise field → how much accent shows.
     const n1 = 0.5 + 0.5 * @sin(u * 3.1 + t * 0.07) * @cos(v * 2.3 - t * 0.05);
     const n2 = 0.5 + 0.5 * @sin((u + v) * 4.0 - t * 0.11);
-    const k = 0.035 + 0.17 * n1 * n2;
+    // Per-facet variation (a stable hash of the centroid, drifting with it) so
+    // neighbouring triangles read as separate facets, not a smooth gradient.
+    const j = @sin(u * 127.1 + v * 311.7) * 43758.5453;
+    const jitter = (j - @floor(j)) - 0.5; // [-0.5, 0.5)
+    const k = std.math.clamp((0.06 + 0.39 * n1 * n2 + 0.10 * jitter) * opt_contrast, 0, 0.9);
     // Hue wanders between the two accents over minutes, varying across the screen.
     const h = 0.5 + 0.5 * @sin(t * 0.013 + u * 1.7 - v * 1.1);
     return pack(mix(col_bg, mix(col_a, col_b, h), k));
@@ -584,6 +589,8 @@ pub fn main(init: std.process.Init.Minimal) !void {
             opt_fps = std.math.clamp(std.fmt.parseFloat(f64, v) catch usage(), 0.1, 30);
         } else if (std.mem.eql(u8, k, "--points")) {
             opt_points = std.math.clamp(std.fmt.parseInt(usize, v, 10) catch usage(), 3, 2000);
+        } else if (std.mem.eql(u8, k, "--contrast")) {
+            opt_contrast = std.math.clamp(std.fmt.parseFloat(f64, v) catch usage(), 0, 3);
         } else if (std.mem.eql(u8, k, "--speed")) {
             opt_speed = std.math.clamp(std.fmt.parseFloat(f64, v) catch usage(), 0, 50);
         } else if (std.mem.eql(u8, k, "--bg")) {
