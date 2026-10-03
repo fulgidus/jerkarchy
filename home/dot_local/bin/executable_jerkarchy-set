@@ -10,11 +10,12 @@
 #   jerkarchy-set KEY VALUE       set, apply, reload
 #
 # Keys: theme, wall_contrast (0.5–4), wall_fps (1–60), wall_speed (0.1–5),
-#       wall_points (20–600).
+#       wall_points (20–600), kb_layout (us | it,us | …), kb_variant (,intl | …),
+#       kb_options (grp:alt_shift_toggle | …). "none" clears kb_variant/kb_options.
 set -e
 
 CFG="${XDG_CONFIG_HOME:-$HOME/.config}/chezmoi/chezmoi.toml"
-KEYS="theme wall_contrast wall_fps wall_speed wall_points"
+KEYS="theme wall_contrast wall_fps wall_speed wall_points kb_layout kb_variant kb_options"
 
 die() { echo "jerkarchy-set: $*" >&2; [ -t 2 ] || notify-send -a jerkarchy -u critical "jerkarchy-set" "$*" 2>/dev/null || true; exit 1; }
 
@@ -79,7 +80,7 @@ case "${1:-}" in
 esac
 
 key=$1; val=${2:-}
-[ -n "$val" ] || die "usage: jerkarchy-set KEY VALUE"
+[ $# -ge 2 ] || die "usage: jerkarchy-set KEY VALUE"
 case "$key" in
     theme)
         themes | cut -f1 | grep -qxF "$val" || die "unknown theme '$val' (see: jerkarchy-set themes)"
@@ -88,6 +89,13 @@ case "$key" in
     wall_speed)    is_num "$val" && in_range "$val" 0.1 5   || die "wall_speed: 0.1–5";     toml=$val ;;
     wall_fps)      printf '%s' "$val" | grep -qE '^[0-9]+$' && in_range "$val" 1 60   || die "wall_fps: integer 1–60";     toml=$val ;;
     wall_points)   printf '%s' "$val" | grep -qE '^[0-9]+$' && in_range "$val" 20 600 || die "wall_points: integer 20–600"; toml=$val ;;
+    kb_layout)
+        printf '%s' "$val" | grep -qE '^[a-z]{2,3}(,[a-z]{2,3})*$' || die "kb_layout: xkb layouts like us or it,us"
+        toml="\"$val\"" ;;
+    kb_variant|kb_options)
+        [ "$val" = none ] && val=""
+        [ -z "$val" ] || printf '%s' "$val" | grep -qE '^[a-z0-9_:,+-]+$' || die "$key: letters, digits and _ : , + - only"
+        toml="\"$val\"" ;;
     *) die "unknown key '$key' (keys: $KEYS)" ;;
 esac
 
@@ -106,6 +114,7 @@ if [ -n "${SWAYSOCK:-}" ] && swaymsg -t get_version >/dev/null 2>&1; then
     case "$key" in
         theme) reload_theme ;;
         wall_*) reload_wall ;;
+        kb_*)   swaymsg -q reload ;;
     esac
 fi
 echo "$key = $val"

@@ -140,7 +140,12 @@ if HOME="$JH" chezmoi apply --no-tty --force </dev/null >"$TMP/err" 2>&1 &&
 else
     bad "set + apply"; sed 's/^/        /' "$TMP/err"
 fi
-for args in "theme nope" "wall_fps 0" "wall_fps 2.5" "wall_contrast 9" "bogus 1"; do
+if jset kb_layout it,us >/dev/null 2>&1 && jset kb_variant ,intl >/dev/null 2>&1 && jset kb_options none >/dev/null 2>&1 &&
+        grep -q '^    xkb_layout it,us$' "$JH/.config/sway/config" && grep -q '^    xkb_variant ,intl$' "$JH/.config/sway/config" &&
+        ! grep -q xkb_options "$JH/.config/sway/config"; then
+    ok "keyboard settings render into the sway config (none clears)"
+else bad "keyboard settings"; fi
+for args in "theme nope" "wall_fps 0" "wall_fps 2.5" "wall_contrast 9" "bogus 1" "kb_layout IT" "kb_layout it;us" "kb_options a\$b"; do
     # shellcheck disable=SC2086
     if jset $args >/dev/null 2>&1; then bad "accepts '$args'"; else ok "rejects '$args'"; fi
 done
