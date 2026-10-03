@@ -7,7 +7,7 @@
 //! layer-shell *background* layer, a few frames per second: no GPU, little power.
 //!
 //!   jerkwall [--fps N] [--points N] [--speed X] [--contrast X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB]
-//!   jerkwall [same options] --frame W H FILE.png    render "now" to a PNG and exit
+//!   jerkwall [same options] [--at S] --frame W H FILE.png   render "now" (+S seconds) to a PNG and exit
 //!
 //! The scene is a pure function of the wall clock (fixed seed), so --frame
 //! produces exactly what a running jerkwall shows at that moment; the lock
@@ -56,7 +56,7 @@ fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
 }
 
 fn usage() noreturn {
-    std.debug.print("usage: jerkwall [--fps N] [--points N] [--speed X] [--contrast X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB] [--frame W H FILE.png]\n", .{});
+    std.debug.print("usage: jerkwall [--fps N] [--points N] [--speed X] [--contrast X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB] [--at S] [--frame W H FILE.png]\n", .{});
     std.process.exit(2);
 }
 
@@ -572,12 +572,17 @@ pub fn main(init: std.process.Init.Minimal) !void {
     var frame_w: usize = 0;
     var frame_h: usize = 0;
     var frame_file: ?[*:0]const u8 = null;
+    var frame_offset: f64 = 0;
     var i: usize = 1;
     while (i < argv.len) : (i += 2) {
         if (i + 1 >= argv.len) usage();
         const k = std.mem.span(argv[i]);
         const v = std.mem.span(argv[i + 1]);
-        if (std.mem.eql(u8, k, "--frame")) {
+        if (std.mem.eql(u8, k, "--at")) {
+            // --at SECONDS: with --frame, render the moment SECONDS from now
+            // (negative = past). For previews and tests.
+            frame_offset = std.fmt.parseFloat(f64, v) catch usage();
+        } else if (std.mem.eql(u8, k, "--frame")) {
             // --frame W H FILE: render the frame for "now" to a PNG and exit.
             if (i + 3 >= argv.len) usage();
             frame_w = std.fmt.parseInt(usize, v, 10) catch usage();
@@ -603,7 +608,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
     }
 
     try initScene();
-    setTime(wallTime());
+    setTime(wallTime() + frame_offset);
 
     if (frame_file) |path| {
         const px = try gpa.alloc(u32, frame_w * frame_h);
