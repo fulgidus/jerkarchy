@@ -8,7 +8,7 @@
 #
 # Needs: bash, python3, chezmoi, sway, fuzzel, zig (unless --quick).
 # Never touches the real home: everything renders into temp dirs.
-# shellcheck is used when installed (CI always installs it).
+# Lints with shellcheck when it's installed (CI always installs it).
 set -uo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -19,6 +19,9 @@ TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 export DBUS_SESSION_BUS_ADDRESS="unix:path=$TMP/no-bus"
 unset WAYLAND_DISPLAY SWAYSOCK DISPLAY
 export XDG_RUNTIME_DIR="$TMP/run"; mkdir -p "$XDG_RUNTIME_DIR"; chmod 700 "$XDG_RUNTIME_DIR"
+# Containers and fresh VMs default to the C locale, where fuzzel rejects the
+# configs' non-ASCII prompt; real sessions are UTF-8.
+export LC_ALL=C.UTF-8
 fails=0
 
 ok()   { printf '  \033[32mok\033[0m    %s\n' "$*"; }
@@ -27,7 +30,7 @@ skip() { printf '  \033[33mskip\033[0m  %s\n' "$*"; }
 step() { printf '\n\033[1;96m▌ %s\033[0m\n' "$*"; }
 need() { command -v "$1" >/dev/null || { bad "$1 not installed"; return 1; }; }
 
-cd "$ROOT"
+cd "$ROOT" || exit 1
 
 # Scripts: chezmoi-managed executables + repo scripts.
 mapfile -t SCRIPTS < <(
@@ -45,8 +48,8 @@ fi
 step "shell syntax"
 for f in "${SCRIPTS[@]}"; do
     case "$(head -1 "$f")" in
-        *bash*) sh_=bash ;;
-        *sh*)   sh_=sh ;;
+        *bash*) sh_="bash" ;;
+        *sh*)   sh_="sh" ;;
         *)      continue ;;
     esac
     if $sh_ -n "$f" 2>"$TMP/err"; then ok "$sh_ -n $f"; else bad "$sh_ -n $f"; sed 's/^/        /' "$TMP/err"; fi
@@ -56,7 +59,12 @@ step "shellcheck"
 if command -v shellcheck >/dev/null; then
     for f in "${SCRIPTS[@]}"; do
         head -1 "$f" | grep -q 'sh' || continue
-        if shellcheck -S warning "$f" >"$TMP/sc" 2>&1; then ok "$f"; else bad "$f"; sed 's/^/        /' "$TMP/sc"; fi
+        # Templates: lint what chezmoi renders, not the template syntax.
+        lint=$f
+        case "$f" in *.tmpl)
+            lint=$(HOME="$FAKEHOME" chezmoi target-path --source "$ROOT" --destination "$FAKEHOME" "$ROOT/$f") ;;
+        esac
+        if shellcheck -S warning "$lint" >"$TMP/sc" 2>&1; then ok "$f"; else bad "$f"; sed 's/^/        /' "$TMP/sc"; fi
     done
 else
     skip "shellcheck not installed (CI runs it)"
@@ -111,6 +119,7 @@ print(" ".join(sorted(d["themes"])), file=open(sys.argv[1] + ".names", "w"))
 EOF
 then
     ok "schema ($(wc -w <"$TMP/data.json.names") themes)"
+    mapfile -t TEMPLATES < <(find home -name '*.tmpl')
     for th in $(cat "$TMP/data.json.names"); do
         h="$TMP/theme-$th"; mkdir -p "$h/.config/chezmoi"
         printf 'sourceDir = "%s"\n[data]\ntheme = "%s"\n' "$ROOT" "$th" >"$h/.config/chezmoi/chezmoi.toml"
@@ -122,7 +131,7 @@ then
                 sway -C -c "$h/.config/sway/config" >"$TMP/err" 2>&1 && ! grep -qiE 'error|warn' "$TMP/err" || r="$r sway"
             for f in "$h"/.config/fuzzel/*.ini; do fuzzel --config "$f" --check-config >/dev/null 2>&1 || r="$r ${f##*/}"; done
             # Outputs of *.tmpl sources must not contain template syntax or <no value>.
-            for src in $(find home -name '*.tmpl'); do
+            for src in "${TEMPLATES[@]}"; do
                 tgt=$(HOME="$h" chezmoi target-path --source "$ROOT" --destination "$h" "$ROOT/$src" 2>/dev/null) || continue
                 grep -qE '\{\{|<no value>' "$tgt" 2>/dev/null && r="$r unrendered:${tgt#"$h"/}"
             done

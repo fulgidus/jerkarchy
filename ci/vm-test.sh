@@ -150,7 +150,7 @@ check "autotiling running"            "pgrep -f autotiling"
 check "jerkwall (wallpaper) running"  "pgrep -x jerkwall"
 check "sway-binds renders the list"   "test \$(~/.local/bin/sway-binds | grep -c '▌') -ge 5"
 check "chezmoi: no drift"             "test -z \"\$(chezmoi diff)\""
-check "bar-battery prints JSON"       "~/.local/bin/bar-battery | python3 -c 'import json,sys; json.load(sys.stdin)'"
+check "bar-battery prints JSON"       "\$HOME/.local/bin/bar-battery | python3 -c 'import json,sys; json.load(sys.stdin)'"
 vm "$SWAYENV grim /tmp/shot.png" && scp -q -i "$RUN/key" -P "$SSH_PORT" -o StrictHostKeyChecking=no \
     -o UserKnownHostsFile=/dev/null arch@127.0.0.1:/tmp/shot.png "$OUT/screenshot.png" 2>/dev/null \
     && say "screenshot: $OUT/screenshot.png"

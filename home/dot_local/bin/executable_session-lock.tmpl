@@ -17,7 +17,7 @@ dir="${XDG_RUNTIME_DIR:-/tmp}/jerkwall-lock"
 set --
 jw="$HOME/.local/bin/jerkwall"  # full path: sway-spawned processes may lack ~/.local/bin in PATH
 if [ -n "$SWAYSOCK" ] && [ -x "$jw" ]; then
-    mkdir -p -m 700 "$dir"
+    mkdir -p "$dir" && chmod 700 "$dir"
     rm -f "$dir"/*.png
     swaymsg -t get_outputs -r |
         jq -r '.[] | select(.active) | "\(.name) \(.current_mode.width) \(.current_mode.height)"' > "$dir/outputs"
