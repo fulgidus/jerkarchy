@@ -9,7 +9,8 @@
 #   ci/vm-test.sh [--keep]     --keep: leave the VM running at the end (ssh hint printed)
 #
 # Needs: qemu-system-x86_64, qemu-img, KVM, python3, ssh, curl. ~4 GB RAM, ~6 GB disk.
-# Cache: ${XDG_CACHE_HOME:-~/.cache}/jerkarchy-vm (base image only).
+# Cache: ${XDG_CACHE_HOME:-~/.cache}/jerkarchy-vm (base image; run dirs, removed
+# afterwards unless --keep). Logs: $VM_TEST_OUT (default: the run dir).
 set -euo pipefail
 
 IMAGE_BUILD=20261001.604814
@@ -20,7 +21,10 @@ IMAGE_SHA256=360f0fa49db6813bdc8e35bed230a2dc2ae3567b7b5ab74719c0a706e4e34e87
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 CACHE=${XDG_CACHE_HOME:-$HOME/.cache}/jerkarchy-vm
 KEEP=0; [ "${1:-}" = --keep ] && KEEP=1
-RUN=$(mktemp -d "${TMPDIR:-/tmp}/jerkarchy-vm.XXXXXX")
+# On disk, not in /tmp: the guest's disk grows by GBs, and a full tmpfs
+# froze the guest mid-install (writes fail, ssh dies) without an error.
+mkdir -p "$CACHE"
+RUN=$(mktemp -d "$CACHE/run.XXXXXX")
 OUT=${VM_TEST_OUT:-$RUN/out}; mkdir -p "$OUT"
 SNAPSHOT=$(cat "$ROOT/SNAPSHOT")
 
@@ -30,8 +34,11 @@ free_port() { python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",
 
 QEMU_PID="" HTTP_PID=""
 cleanup() {
+    cp "$RUN/serial.log" "$OUT/serial.log" 2>/dev/null || true
     [ -n "$HTTP_PID" ] && kill "$HTTP_PID" 2>/dev/null || true
-    if [ "$KEEP" = 0 ] && [ -n "$QEMU_PID" ]; then kill "$QEMU_PID" 2>/dev/null || true; fi
+    if [ "$KEEP" = 0 ]; then
+        [ -n "$QEMU_PID" ] && kill "$QEMU_PID" 2>/dev/null; sleep 1; rm -rf "$RUN"
+    fi
 }
 trap cleanup EXIT
 
@@ -73,20 +80,25 @@ qemu-system-x86_64 -enable-kvm -cpu host -smp 4 -m 4096 -nographic \
 QEMU_PID=$!
 
 SSH=(ssh -q -i "$RUN/key" -p "$SSH_PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-     -o ConnectTimeout=5 -o ServerAliveInterval=15 arch@127.0.0.1)
-vm() { "${SSH[@]}" "$@"; }
+     -o ConnectTimeout=5 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 arch@127.0.0.1)
+# Bounded: with QEMU's user networking the TCP connect always succeeds, so a
+# dead guest network hangs ssh at the banner and ConnectTimeout never fires.
+vm() { timeout "${VM_TIMEOUT:-90}" "${SSH[@]}" "$@"; }
 
 for _ in $(seq 1 60); do vm true 2>/dev/null && break; kill -0 "$QEMU_PID" 2>/dev/null || die "QEMU exited (see $RUN/serial.log)"; sleep 3; done
 vm true || die "VM never came up on ssh (see $RUN/serial.log)"
-vm 'sudo cloud-init status --wait >/dev/null 2>&1 || true'
+VM_TIMEOUT=600 vm 'sudo cloud-init status --wait >/dev/null 2>&1 || true'
 # Keep the user's systemd instance and /run/user/<uid> alive between ssh calls
 # (sway, its IPC socket and sway-session.target live there).
 vm 'sudo loginctl enable-linger arch'
+# Stream the guest journal to the serial console: if the guest's network
+# dies, $RUN/serial.log (copied to $OUT) still says why.
+vm "sudo systemd-run -q --unit=jerkarchy-journal sh -c 'journalctl -f -o short-monotonic >/dev/ttyS0 2>&1'"
 say "VM up"
 
 # --- pin pacman to SNAPSHOT, ship the current commit ---------------------------
 say "pinning pacman to SNAPSHOT $SNAPSHOT"
-vm "echo 'Server = https://archive.archlinux.org/repos/${SNAPSHOT//-//}/\$repo/os/\$arch' | sudo tee /etc/pacman.d/mirrorlist >/dev/null
+VM_TIMEOUT=1800 vm "echo 'Server = https://archive.archlinux.org/repos/${SNAPSHOT//-//}/\$repo/os/\$arch' | sudo tee /etc/pacman.d/mirrorlist >/dev/null
     sudo pacman -Syyuu --noconfirm >/dev/null"
 
 git -C "$ROOT" bundle create -q "$RUN/repo.bundle" HEAD
@@ -138,7 +150,7 @@ check "autotiling running"            "pgrep -f autotiling"
 check "jerkwall (wallpaper) running"  "pgrep -x jerkwall"
 check "sway-binds renders the list"   "test \$(~/.local/bin/sway-binds | grep -c '▌') -ge 5"
 check "chezmoi: no drift"             "test -z \"\$(chezmoi diff)\""
-check "bar-battery prints JSON"       "~/.local/bin/bar-battery | python3 -c 'import json,sys; json.load(sys.stdin)'"
+check "bar-battery prints JSON"       "\$HOME/.local/bin/bar-battery | python3 -c 'import json,sys; json.load(sys.stdin)'"
 vm "$SWAYENV grim /tmp/shot.png" && scp -q -i "$RUN/key" -P "$SSH_PORT" -o StrictHostKeyChecking=no \
     -o UserKnownHostsFile=/dev/null arch@127.0.0.1:/tmp/shot.png "$OUT/screenshot.png" 2>/dev/null \
     && say "screenshot: $OUT/screenshot.png"

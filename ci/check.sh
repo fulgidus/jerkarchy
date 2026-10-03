@@ -4,15 +4,24 @@
 #
 #   ci/check.sh            all checks
 #   ci/check.sh --quick    skip the Zig build
+#   CI_OUT=dir ci/check.sh  also keep the built binaries in dir (release job)
 #
 # Needs: bash, python3, chezmoi, sway, fuzzel, zig (unless --quick).
 # Never touches the real home: everything renders into temp dirs.
-# shellcheck is used when installed (CI always installs it).
+# Lints with shellcheck when it's installed (CI always installs it).
 set -uo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 QUICK=0; [ "${1:-}" = --quick ] && QUICK=1
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+# Nothing here may reach a live session: no notifications on the user's bus,
+# no IPC to their sway, logs in a private runtime dir.
+export DBUS_SESSION_BUS_ADDRESS="unix:path=$TMP/no-bus"
+unset WAYLAND_DISPLAY SWAYSOCK DISPLAY
+export XDG_RUNTIME_DIR="$TMP/run"; mkdir -p "$XDG_RUNTIME_DIR"; chmod 700 "$XDG_RUNTIME_DIR"
+# Containers and fresh VMs default to the C locale, where fuzzel rejects the
+# configs' non-ASCII prompt; real sessions are UTF-8.
+export LC_ALL=C.UTF-8
 fails=0
 
 ok()   { printf '  \033[32mok\033[0m    %s\n' "$*"; }
@@ -21,7 +30,7 @@ skip() { printf '  \033[33mskip\033[0m  %s\n' "$*"; }
 step() { printf '\n\033[1;96m▌ %s\033[0m\n' "$*"; }
 need() { command -v "$1" >/dev/null || { bad "$1 not installed"; return 1; }; }
 
-cd "$ROOT"
+cd "$ROOT" || exit 1
 
 # Scripts: chezmoi-managed executables + repo scripts.
 mapfile -t SCRIPTS < <(
@@ -39,8 +48,8 @@ fi
 step "shell syntax"
 for f in "${SCRIPTS[@]}"; do
     case "$(head -1 "$f")" in
-        *bash*) sh_=bash ;;
-        *sh*)   sh_=sh ;;
+        *bash*) sh_="bash" ;;
+        *sh*)   sh_="sh" ;;
         *)      continue ;;
     esac
     if $sh_ -n "$f" 2>"$TMP/err"; then ok "$sh_ -n $f"; else bad "$sh_ -n $f"; sed 's/^/        /' "$TMP/err"; fi
@@ -50,7 +59,12 @@ step "shellcheck"
 if command -v shellcheck >/dev/null; then
     for f in "${SCRIPTS[@]}"; do
         head -1 "$f" | grep -q 'sh' || continue
-        if shellcheck -S warning "$f" >"$TMP/sc" 2>&1; then ok "$f"; else bad "$f"; sed 's/^/        /' "$TMP/sc"; fi
+        # Templates: lint what chezmoi renders, not the template syntax.
+        lint=$f
+        case "$f" in *.tmpl)
+            lint=$(HOME="$FAKEHOME" chezmoi target-path --source "$ROOT" --destination "$FAKEHOME" "$ROOT/$f") ;;
+        esac
+        if shellcheck -S warning "$lint" >"$TMP/sc" 2>&1; then ok "$f"; else bad "$f"; sed 's/^/        /' "$TMP/sc"; fi
     done
 else
     skip "shellcheck not installed (CI runs it)"
@@ -97,6 +111,7 @@ for name, t in d["themes"].items():
     if len(t.get("ansi", [])) != 16 or not all(hexc.match(c) for c in t["ansi"]): bad.append(f"{name}.ansi")
     if not isinstance(t.get("light"), bool) or not t.get("title"): bad.append(f"{name}: title/light")
     if "wall" in t and not (2 <= len(t["wall"]) <= 12 and all(hexc.match(c) for c in t["wall"])): bad.append(f"{name}.wall (2-12 hex colours)")
+    if t.get("group") == "flags" and not (t.get("wall") and t.get("ui") and all(hexc.match(c) for c in t["ui"])): bad.append(f"{name}: flags need wall + ui")
     if t.get("group", "flags") not in ("flags", "mono"): bad.append(f"{name}.group (flags|mono, or none)")
 if d.get("theme") not in d["themes"]: bad.append(f"default theme {d.get('theme')!r} missing")
 if bad: sys.exit("\n".join(bad))
@@ -104,6 +119,7 @@ print(" ".join(sorted(d["themes"])), file=open(sys.argv[1] + ".names", "w"))
 EOF
 then
     ok "schema ($(wc -w <"$TMP/data.json.names") themes)"
+    mapfile -t TEMPLATES < <(find home -name '*.tmpl')
     for th in $(cat "$TMP/data.json.names"); do
         h="$TMP/theme-$th"; mkdir -p "$h/.config/chezmoi"
         printf 'sourceDir = "%s"\n[data]\ntheme = "%s"\n' "$ROOT" "$th" >"$h/.config/chezmoi/chezmoi.toml"
@@ -115,7 +131,7 @@ then
                 sway -C -c "$h/.config/sway/config" >"$TMP/err" 2>&1 && ! grep -qiE 'error|warn' "$TMP/err" || r="$r sway"
             for f in "$h"/.config/fuzzel/*.ini; do fuzzel --config "$f" --check-config >/dev/null 2>&1 || r="$r ${f##*/}"; done
             # Outputs of *.tmpl sources must not contain template syntax or <no value>.
-            for src in $(find home -name '*.tmpl'); do
+            for src in "${TEMPLATES[@]}"; do
                 tgt=$(HOME="$h" chezmoi target-path --source "$ROOT" --destination "$h" "$ROOT/$src" 2>/dev/null) || continue
                 grep -qE '\{\{|<no value>' "$tgt" 2>/dev/null && r="$r unrendered:${tgt#"$h"/}"
             done
@@ -219,6 +235,7 @@ else ok "no attribution trailers in history"; fi
 if find . -path ./.git -prune -o \( -name '*.bak*' -o -name '*~' \) -print | grep -q .; then
     bad "backup files present"
 else ok "no backup files"; fi
+if grep -qxE '[0-9]+\.[0-9]+\.[0-9]+' VERSION 2>/dev/null; then ok "VERSION = $(cat VERSION)"; else bad "VERSION missing or not X.Y.Z"; fi
 if [ -f SNAPSHOT ] && grep -qxE '[0-9]{4}-[0-9]{2}-[0-9]{2}' SNAPSHOT; then
     ok "SNAPSHOT = $(cat SNAPSHOT)"
 else bad "SNAPSHOT missing or not YYYY-MM-DD"; fi
@@ -233,6 +250,7 @@ elif need zig && need wayland-scanner; then
         zig build-exe main.zig "$TMP"/jw-gen/*.c -I"$TMP/jw-gen" -I/usr/include -L/usr/lib \
             -target x86_64-linux-gnu -lc -lwayland-client -lwayland-egl -lEGL -lGLESv2 -O ReleaseFast -femit-bin="$TMP/jerkwall") >"$TMP/zig" 2>&1; then
         ok "build"
+        [ -n "${CI_OUT:-}" ] && mkdir -p "$CI_OUT" && cp "$TMP/jerkwall" "$CI_OUT/"
         if "$TMP/jerkwall" --fps x >/dev/null 2>&1; then bad "rejects bad --fps"; else ok "rejects bad --fps"; fi
         if "$TMP/jerkwall" --stops ff0000 >/dev/null 2>&1; then bad "rejects a one-colour --stops"; else ok "rejects a one-colour --stops"; fi
         if HOME="$TMP" "$TMP/jerkwall" --stops e40303,ff8c00,ffed00,008026,004dff,750787 --frame 64 36 "$TMP/stops.png" >/dev/null 2>&1 &&
@@ -248,6 +266,7 @@ if [ "$QUICK" = 1 ]; then
 elif need zig; then
     if (cd src/sway-binds && zig build-exe main.zig -O ReleaseSafe -femit-bin="$TMP/sway-binds") >"$TMP/zig" 2>&1; then
         ok "build"
+        [ -n "${CI_OUT:-}" ] && mkdir -p "$CI_OUT" && cp "$TMP/sway-binds" "$CI_OUT/"
         if "$TMP/sway-binds" "$SWAYCFG" >"$TMP/binds" 2>&1 && [ "$(grep -c '▌' "$TMP/binds")" -ge 5 ]; then
             ok "renders the binding list ($(grep -c '▌' "$TMP/binds") sections)"
         else

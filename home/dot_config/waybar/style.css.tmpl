@@ -48,3 +48,24 @@ window#waybar {
 #custom-battery.plugged     { color: {{ $t.accent }}; }
 #custom-battery.warning     { color: {{ $t.bg }}; background: {{ $t.accent2 }}; }
 #custom-battery.critical    { font-weight: bold; }
+{{- if and (hasKey $t "group") (eq $t.group "flags") }}
+{{- $w := $t.wall }}{{ $n := len $w }}{{ $u := $t.ui }}{{ $m := len $u }}
+
+/* Flag themes wear the flag: a hard-stop stripe along the bottom of the bar
+   (exact flag colours), and workspace underlines, separators and module text
+   cycling through readable versions of them (`ui`). */
+window#waybar {
+  border-bottom: none;
+  background-color: {{ $t.bg }};
+  background-image: linear-gradient(to bottom, {{ $t.bg }} 82%, transparent 82%),
+    linear-gradient(to right{{ range $i, $c := $w }}, {{ $c }} {{ div (mul $i 100) $n }}%, {{ $c }} {{ div (mul (add $i 1) 100) $n }}%{{ end }});
+}
+.modules-left, .modules-center, .modules-right, .modules-right > widget > *,
+.modules-left > widget > *, .modules-center > widget > * { background-color: transparent; }
+{{- range $i, $c := $u }}
+#workspaces button:nth-child({{ $m }}n+{{ add $i 1 }}) { box-shadow: inset 0 -3px {{ $c }}; }
+{{- end }}
+{{- range $i, $mod := list "idle_inhibitor" "pulseaudio" "backlight" "bluetooth" "network" "custom-battery" "clock" "custom-settings" }}
+#{{ $mod }} { border-left-color: {{ index $u (mod $i $m) }}; color: {{ index $u (mod $i $m) }}; }
+{{- end }}
+{{- end }}

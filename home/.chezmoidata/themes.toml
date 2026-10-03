@@ -371,6 +371,8 @@ warn = "#e8c46a"
 err = "#ff4f9a"
 ansi = ["#24152b", "#ff4f7b", "#6fd39b", "#e8c46a", "#4f7bff", "#d60270", "#9b8cff", "#d9cce0", "#5a4463", "#ff7a9c", "#95e2b8", "#f2d690", "#7f9fff", "#e8459a", "#b9aeff", "#ffffff"]
 wall = ["#d60270", "#9b4f96", "#0038a8"]
+# flag colours lightened for text on the bar
+ui = ["#ff3d9a", "#c27abd", "#6f93ff"]
 
 [themes.queer]
 title = "Queer (Progress Pride)"
@@ -391,6 +393,8 @@ warn = "#ff8c00"
 err = "#ff4040"
 ansi = ["#1c1c22", "#ff4040", "#2fbf58", "#ffed00", "#4d85ff", "#c05ad9", "#74d7ee", "#e6e6ea", "#7a4a22", "#ff6b6b", "#5fe08a", "#fff36b", "#80a8ff", "#ffafc8", "#a6e8f6", "#ffffff"]
 wall = ["#e40303", "#ff8c00", "#ffed00", "#008026", "#004dff", "#750787", "#ffafc8", "#74d7ee"]
+# flag colours lightened for text on the bar
+ui = ["#ff4040", "#ff8c00", "#ffed00", "#2fbf58", "#4d85ff", "#c05ad9", "#ffafc8", "#74d7ee"]
 
 [themes.polyam]
 title = "Polyam"
@@ -411,6 +415,8 @@ warn = "#fcbf00"
 err = "#ff3d7f"
 ansi = ["#2a1036", "#ff3d7f", "#5fd38d", "#fcbf00", "#009fe3", "#b05cd6", "#4fc8f0", "#e0d6e6", "#5e4470", "#ff6f9d", "#8be3ad", "#ffd34d", "#4dbfff", "#c98ae6", "#8adaf5", "#ffffff"]
 wall = ["#009fe3", "#e50051", "#340c46", "#fcbf00"]
+# flag colours lightened for text on the bar
+ui = ["#009fe3", "#ff3d7f", "#b05cd6", "#fcbf00"]
 
 [themes.trans]
 title = "Trans"
@@ -431,6 +437,8 @@ warn = "#f5d48a"
 err = "#f57a95"
 ansi = ["#1a2530", "#f57a95", "#8fe0b0", "#f5d48a", "#5bcefa", "#f5a9b8", "#9fe3fb", "#eef2f5", "#4a5d6c", "#f99bb0", "#b0ebc8", "#f9e2ae", "#8adcfb", "#f9c4ce", "#c2edfc", "#ffffff"]
 wall = ["#5bcefa", "#f5a9b8", "#ffffff"]
+# flag colours lightened for text on the bar
+ui = ["#5bcefa", "#f5a9b8", "#ffffff"]
 
 [themes.antifa]
 title = "Antifa"
@@ -451,6 +459,8 @@ warn = "#ff8080"
 err = "#ff0000"
 ansi = ["#1e1e1e", "#ff0000", "#d0d0d0", "#ff8080", "#a0a0a0", "#ff4040", "#c0c0c0", "#e6e6e6", "#4a4a4a", "#ff3333", "#e6e6e6", "#ffaaaa", "#bdbdbd", "#ff6666", "#dadada", "#ffffff"]
 wall = ["#ff0000", "#000000"]
+# flag colours lightened for text on the bar
+ui = ["#ff0000", "#e6e6e6"]
 
 # ---- monochrome: one hue per theme, every role a shade of it (emphasis
 # by brightness, like a phosphor terminal), each in dark and light.

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jerkarchy</title>
+<meta name="description" content="Ugly, boring and un-funded Linux: a sway desktop for Arch, and a deliberately lazy rip-off of Omarchy.">
+<style>
+:root {
+  --bg: #0a0a0f; --panel: #12121a; --line: #2a2a35; --fg: #c8c8d0; --bright: #e5e1e7;
+  --dim: #8a8aa0; --cyan: #00f0ff; --magenta: #ff2b6d;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 var(--mono); }
+main { max-width: 980px; margin: 0 auto; padding: 40px 16px 64px; display: grid; gap: 44px; }
+h1 { margin: 0; font-size: clamp(2.2rem, 7vw, 3.6rem); color: var(--cyan); letter-spacing: -.02em; line-height: 1.05; }
+h2 { margin: 0 0 12px; font-size: 1.1rem; color: var(--cyan); }
+.tag { margin: 10px 0 0; font-size: 1.15rem; color: var(--bright); font-weight: 700; }
+.sub { margin: 4px 0 0; color: var(--dim); }
+p { margin: 0 0 12px; max-width: 70ch; }
+a { color: var(--cyan); }
+a:focus-visible { outline: 2px solid var(--magenta); outline-offset: 2px; }
+pre { margin: 0; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-left: 2px solid var(--cyan); overflow-x: auto; color: var(--bright); font-size: .9rem; }
+.links { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 18px; }
+.links a { text-decoration: none; border-bottom: 1px solid var(--line); color: var(--fg); }
+.links a:hover { color: var(--cyan); border-color: var(--cyan); }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+th { color: var(--dim); font-weight: 400; }
+td:first-child { color: var(--dim); white-space: nowrap; }
+.wrap { overflow-x: auto; }
+.shots { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); }
+figure { margin: 0; }
+figure img { width: 100%; height: auto; display: block; border: 1px solid var(--line); }
+figcaption { color: var(--dim); font-size: .8rem; margin-top: 4px; }
+footer { color: var(--dim); font-size: .85rem; border-top: 1px solid var(--line); padding-top: 18px; }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>jerkarchy</h1>
+  <p class="tag">Twelve men. One distro. Everyone finishes.</p>
+  <p class="sub">Ugly, boring &amp; un-funded Linux.</p>
+  <nav class="links" aria-label="Project links">
+    <a href="https://github.com/fulgidus/jerkarchy">source</a>
+    <a href="https://github.com/fulgidus/jerkarchy/releases">releases</a>
+    <a href="https://github.com/fulgidus/jerkarchy#readme">README (with sources)</a>
+  </nav>
+</header>
+
+<section aria-labelledby="what">
+  <h2 id="what">What it is</h2>
+  <p>An opinionated desktop for Arch-based systems, built on <strong>sway</strong> and applied with
+  chezmoi. It's a deliberately lazy, obvious rip-off of <a href="https://omarchy.org/">Omarchy</a>,
+  made to ask one question: what does $15.5 million buy that an evening and a dotfiles manager don't?
+  The figures and the sources behind them are in the <a href="https://github.com/fulgidus/jerkarchy#readme">README</a>.</p>
+  <p>Every dependency gets a check against two lists of software run or funded by people the lists'
+  authors consider far-right: <a href="https://git.sr.ht/~rabbits/fashware">~rabbits/fashware</a> and
+  <a href="https://drewdevault.com/weird-guys/">weird little guys of FOSS</a>.</p>
+</section>
+
+<section aria-labelledby="install">
+  <h2 id="install">Install</h2>
+  <pre><code>curl -fsSL https://raw.githubusercontent.com/fulgidus/jerkarchy/main/install.sh | bash</code></pre>
+  <p style="margin-top:10px">Read it first: it's short on purpose. It installs packages from Arch's
+  official repos (sudo), clones the dotfiles, applies them and builds two small Zig helpers.
+  Then log into sway and press <code>Super+H</code> for the key bindings.</p>
+</section>
+
+<section aria-labelledby="box">
+  <h2 id="box">What's in the box</h2>
+  <div class="wrap"><table>
+    <tr><th scope="row">window manager</th><td>sway + autotiling (Hyprland-style splits)</td></tr>
+    <tr><th scope="row">bar</th><td>waybar, with Wi-Fi, Bluetooth and settings drop-downs, and battery + power profile in one item</td></tr>
+    <tr><th scope="row">wallpaper</th><td>a live Delaunay mesh that drifts and shifts colour (Zig, GLES2, CPU fallback)</td></tr>
+    <tr><th scope="row">themes</th><td>48: classics from their upstream projects, flags (queer, bi, trans, polyam, antifa), monochrome</td></tr>
+    <tr><th scope="row">settings</th><td>one menu (<code>Super+,</code>) and one command, <code>jerkarchy-set</code></td></tr>
+    <tr><th scope="row">notifications</th><td>mako; click for actions, copy, dismiss, history</td></tr>
+    <tr><th scope="row">key bindings</th><td>generated from the config (<code>Super+H</code>), so they can't go stale</td></tr>
+    <tr><th scope="row">installer</th><td>one bash script, zero questions</td></tr>
+    <tr><th scope="row">funding</th><td>$0</td></tr>
+  </table></div>
+</section>
+
+<section aria-labelledby="looks">
+  <h2 id="looks">Looks</h2>
+  <div class="shots">
+    <figure><img src="img/jerkarchy.jpg" width="960" height="540" loading="lazy" alt="Default jerkarchy theme: cyan on near-black, with terminal and settings menu"><figcaption>jerkarchy (default)</figcaption></figure>
+    <figure><img src="img/tokyo-night.jpg" width="960" height="540" loading="lazy" alt="Tokyo Night theme"><figcaption>Tokyo Night</figcaption></figure>
+    <figure><img src="img/catppuccin-latte.jpg" width="960" height="540" loading="lazy" alt="Catppuccin Latte light theme"><figcaption>Catppuccin Latte</figcaption></figure>
+    <figure><img src="img/queer.jpg" width="960" height="540" loading="lazy" alt="Queer theme with a Progress Pride wallpaper"><figcaption>Queer (Progress Pride)</figcaption></figure>
+    <figure><img src="img/trans.jpg" width="960" height="540" loading="lazy" alt="Trans theme in light blue, pink and white"><figcaption>Trans</figcaption></figure>
+    <figure><img src="img/mono-amber-dark.jpg" width="960" height="540" loading="lazy" alt="Monochrome amber theme, like a phosphor terminal"><figcaption>Mono amber</figcaption></figure>
+  </div>
+</section>
+
+<footer>
+  X11 license · © 2026 Alessio Corsi · vibe-coded, and the README says so ·
+  <a href="https://github.com/fulgidus/jerkarchy">github.com/fulgidus/jerkarchy</a>
+</footer>
+</main>
+</body>
+</html>
