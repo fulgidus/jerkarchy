@@ -68,7 +68,21 @@ fn usage() noreturn {
 
 // ---------------------------------------------------------------- scene
 
-const Pt = struct { x: f64 = 0, y: f64 = 0, x0: f64, y0: f64, vx: f64 = 0, vy: f64 = 0, fixed: bool = false };
+const Pt = struct {
+    x: f64 = 0,
+    y: f64 = 0,
+    home_x: f64, // moving points wander around home; fixed (border) points stay here
+    home_y: f64,
+    fixed: bool = false,
+    leg: f64 = 1, // seconds per movement leg (waypoint to waypoint)
+    leg_phase: f64 = 0,
+    tone: f64 = 1, // seconds per colour-variation step
+    tone_phase: f64 = 0,
+    // Per-frame derived values (setTime): colour variation and field samples.
+    jitter: f64 = 0,
+    accent: f64 = 0,
+    hue: f64 = 0,
+};
 
 var points: std.ArrayList(Pt) = .empty;
 var scene_time: f64 = 0;
@@ -78,51 +92,97 @@ var scene_time: f64 = 0;
 /// the wallpaper shows, without talking to the running instance.
 const seed: u64 = 0x6a65726b77616c6c; // "jerkwall"
 const epoch: f64 = 1.7e9; // keeps time values small for the trig below
+const wander = 0.11; // how far (screen fraction) a point roams from home
+
+/// Deterministic hash → [0, 1). `a`, `b`, `c` select point, step and channel.
+fn rnd01(a: u64, b: i64, c_: u64) f64 {
+    var z = seed ^ (a *% 0x9e3779b97f4a7c15) ^ (@as(u64, @bitCast(b)) *% 0xbf58476d1ce4e5b9) ^ (c_ *% 0x94d049bb133111eb);
+    z = (z ^ (z >> 30)) *% 0xbf58476d1ce4e5b9;
+    z = (z ^ (z >> 27)) *% 0x94d049bb133111eb;
+    z ^= z >> 31;
+    return @as(f64, @floatFromInt(z >> 11)) / 9007199254740992.0;
+}
+
+/// Quadratic ease-in-out: zero speed at both ends, so every leg starts and
+/// ends smoothly (a soft turn-around instead of an instant reflection).
+fn easeQuad(s_: f64) f64 {
+    return if (s_ < 0.5) 2 * s_ * s_ else 1 - 2 * (1 - s_) * (1 - s_);
+}
+
+/// Value of a channel that eases between per-step random targets.
+/// Returns the eased interpolation for point `i`, step length `period`.
+fn eased(i: u64, ch: u64, t: f64, period: f64, phase: f64) f64 {
+    const tau = (t + phase) / period;
+    const k = @floor(tau);
+    const ki: i64 = @intFromFloat(k);
+    const e = easeQuad(tau - k);
+    const a = rnd01(i, ki, ch);
+    const b = rnd01(i, ki + 1, ch);
+    return a + (b - a) * e;
+}
+
+/// Soft "bounce" back inside [lo, hi]: mirror anything that crosses an edge.
+fn reflectInto(v: f64, lo: f64, hi: f64) f64 {
+    if (v < lo) return lo + (lo - v);
+    if (v > hi) return hi - (v - hi);
+    return v;
+}
 
 fn initScene() !void {
-    var prng = std.Random.DefaultPrng.init(seed);
-    const rnd = prng.random();
     // Fixed points on the border so the mesh always covers the whole screen.
     const per_side = 7;
     for (0..per_side + 1) |i| {
         const t = @as(f64, @floatFromInt(i)) / per_side;
-        try points.append(gpa, .{ .x0 = t, .y0 = 0, .fixed = true });
-        try points.append(gpa, .{ .x0 = t, .y0 = 1, .fixed = true });
+        try points.append(gpa, .{ .home_x = t, .home_y = 0, .fixed = true });
+        try points.append(gpa, .{ .home_x = t, .home_y = 1, .fixed = true });
         if (i != 0 and i != per_side) {
-            try points.append(gpa, .{ .x0 = 0, .y0 = t, .fixed = true });
-            try points.append(gpa, .{ .x0 = 1, .y0 = t, .fixed = true });
+            try points.append(gpa, .{ .home_x = 0, .home_y = t, .fixed = true });
+            try points.append(gpa, .{ .home_x = 1, .home_y = t, .fixed = true });
         }
     }
-    for (0..opt_points) |_| {
-        const ang = rnd.float(f64) * std.math.tau;
-        const spd = (0.004 + rnd.float(f64) * 0.008) * opt_speed; // screen widths per second
+    // Moving points: homes on a jittered grid (even spread, no clumping).
+    const n = opt_points;
+    const cols: usize = @max(1, @as(usize, @intFromFloat(@round(@sqrt(@as(f64, @floatFromInt(n)) * 16.0 / 9.0)))));
+    const rows: usize = (n + cols - 1) / cols;
+    for (0..n) |ii| {
+        const i: u64 = ii;
+        const cx = (@as(f64, @floatFromInt(ii % cols)) + 0.15 + 0.7 * rnd01(i, -1, 1)) / @as(f64, @floatFromInt(cols));
+        const cy = (@as(f64, @floatFromInt(ii / cols)) + 0.15 + 0.7 * rnd01(i, -1, 2)) / @as(f64, @floatFromInt(rows));
+        const slow = 1.0 / @max(0.05, opt_speed);
         try points.append(gpa, .{
-            .x0 = 0.02 + rnd.float(f64) * 0.96,
-            .y0 = 0.02 + rnd.float(f64) * 0.96,
-            .vx = @cos(ang) * spd,
-            .vy = @sin(ang) * spd,
+            .home_x = cx,
+            .home_y = cy,
+            .leg = (7 + 7 * rnd01(i, -1, 3)) * slow,
+            .leg_phase = 100 * rnd01(i, -1, 4),
+            .tone = (5 + 6 * rnd01(i, -1, 5)) * slow,
+            .tone_phase = 100 * rnd01(i, -1, 6),
         });
     }
 }
 
-/// Position along a straight path that bounces inside [0.01, 0.99].
-fn bounce(start: f64, vel: f64, t: f64) f64 {
-    const lo = 0.01;
-    const span = 0.98;
-    const m = @mod((start - lo + vel * t) / span, 2.0);
-    return lo + (if (m > 1) 2 - m else m) * span;
-}
-
 fn setTime(t: f64) void {
     scene_time = t;
-    for (points.items) |*p| {
+    for (points.items, 0..) |*p, ii| {
+        const i: u64 = ii;
         if (p.fixed) {
-            p.x = p.x0;
-            p.y = p.y0;
+            p.x = p.home_x;
+            p.y = p.home_y;
         } else {
-            p.x = bounce(p.x0, p.vx, t);
-            p.y = bounce(p.y0, p.vy, t);
+            // Waypoints scattered around home; quadratic easing between them.
+            const dx = (eased(i, 10, t, p.leg, p.leg_phase) - 0.5) * 2 * wander;
+            const dy = (eased(i, 11, t, p.leg, p.leg_phase) - 0.5) * 2 * wander;
+            p.x = reflectInto(p.home_x + dx, 0.01, 0.99);
+            p.y = reflectInto(p.home_y + dy, 0.01, 0.99);
         }
+        // Colour: per-point variation easing between targets, plus slow
+        // fields sampled at the point (continuous in position and time).
+        p.jitter = eased(i, 20, t, if (p.fixed) 9 else p.tone, p.tone_phase) - 0.5;
+        const u = p.x;
+        const v = p.y;
+        const n1 = 0.5 + 0.5 * @sin(u * 3.1 + t * 0.07) * @cos(v * 2.3 - t * 0.05);
+        const n2 = 0.5 + 0.5 * @sin((u + v) * 4.0 - t * 0.11);
+        p.accent = 0.06 + 0.39 * n1 * n2 + 0.10 * p.jitter;
+        p.hue = 0.5 + 0.5 * @sin(t * 0.013 + u * 1.7 - v * 1.1);
     }
 }
 
@@ -233,23 +293,19 @@ fn pack(col: Rgb) u32 {
     return 0xff000000 | (r << 16) | (g << 8) | b;
 }
 
-/// Colour of a triangle with centroid (u, v) in [0,1]² at time t.
-fn facet(u: f64, v: f64, t: f64) u32 {
-    return pack(facetRgb(u, v, t));
+/// Colour of a triangle: the average of its three points' eased values, so
+/// when the mesh re-forms, colours shift gently instead of jumping.
+fn facetRgb(a: u32, b: u32, cc: u32) Rgb {
+    const pa = points.items[a];
+    const pb = points.items[b];
+    const pc = points.items[cc];
+    const k = std.math.clamp((pa.accent + pb.accent + pc.accent) / 3 * opt_contrast, 0, 0.9);
+    const h = (pa.hue + pb.hue + pc.hue) / 3;
+    return mix(col_bg, mix(col_a, col_b, h), k);
 }
 
-fn facetRgb(u: f64, v: f64, t: f64) Rgb {
-    // Slow noise field → how much accent shows.
-    const n1 = 0.5 + 0.5 * @sin(u * 3.1 + t * 0.07) * @cos(v * 2.3 - t * 0.05);
-    const n2 = 0.5 + 0.5 * @sin((u + v) * 4.0 - t * 0.11);
-    // Per-facet variation (a stable hash of the centroid, drifting with it) so
-    // neighbouring triangles read as separate facets, not a smooth gradient.
-    const j = @sin(u * 127.1 + v * 311.7) * 43758.5453;
-    const jitter = (j - @floor(j)) - 0.5; // [-0.5, 0.5)
-    const k = std.math.clamp((0.06 + 0.39 * n1 * n2 + 0.10 * jitter) * opt_contrast, 0, 0.9);
-    // Hue wanders between the two accents over minutes, varying across the screen.
-    const h = 0.5 + 0.5 * @sin(t * 0.013 + u * 1.7 - v * 1.1);
-    return mix(col_bg, mix(col_a, col_b, h), k);
+fn facet(a: u32, b: u32, cc: u32) u32 {
+    return pack(facetRgb(a, b, cc));
 }
 
 // ---------------------------------------------------------------- raster
@@ -434,9 +490,7 @@ fn renderGpu(out: *Output, w: usize, h: usize) void {
     out.gl_verts.clearRetainingCapacity();
     for (out.tris.items) |tr| {
         const vs = [3]V{ out.verts.items[tr.a], out.verts.items[tr.b], out.verts.items[tr.c] };
-        const u = (vs[0].x + vs[1].x + vs[2].x) / (3 * fw);
-        const v = (vs[0].y + vs[1].y + vs[2].y) / (3 * fh);
-        const col = facetRgb(u, v, scene_time);
+        const col = facetRgb(tr.a, tr.b, tr.c);
         for (vs) |p| {
             out.gl_verts.appendSlice(gpa, &.{
                 @floatCast(p.x / fw * 2 - 1), @floatCast(1 - p.y / fh * 2),
@@ -506,9 +560,7 @@ fn drawFrame(px: []u32, w: usize, h: usize, verts: *std.ArrayList(V), tris: *std
         const a = verts.items[tr.a];
         const b = verts.items[tr.b];
         const cc = verts.items[tr.c];
-        const u = (a.x + b.x + cc.x) / (3 * fw);
-        const v = (a.y + b.y + cc.y) / (3 * fh);
-        fillTri(px, w, h, a, b, cc, facet(u, v, scene_time));
+        fillTri(px, w, h, a, b, cc, facet(tr.a, tr.b, tr.c));
     }
 }
 
