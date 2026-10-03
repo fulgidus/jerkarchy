@@ -330,6 +330,7 @@ var gl_vbo: c.GLuint = 0;
 var gl_pos: c.GLint = 0;
 var gl_col: c.GLint = 0;
 var use_gpu = false;
+var software_gl = false; // EGL works but renders on the CPU (llvmpipe)
 
 const vs_src =
     \\attribute vec2 pos;
@@ -400,6 +401,15 @@ fn buildProgram() void {
     gl_col = c.glGetAttribLocation(gl_prog, "col");
     c.glGenBuffers(1, &gl_vbo);
     gl_ready = true;
+    // Mesa's software rasterizers (llvmpipe/softpipe) "work" without a GPU but
+    // run on the CPU: treat them like no GPU for frame pacing.
+    if (c.glGetString(c.GL_RENDERER)) |r| {
+        const name = std.mem.span(@as([*:0]const u8, @ptrCast(r)));
+        if (std.mem.indexOf(u8, name, "llvmpipe") != null or std.mem.indexOf(u8, name, "softpipe") != null) {
+            software_gl = true;
+            std.debug.print("jerkwall: GL renderer is {s} (software): capping at CPU-renderer frame rates\n", .{name});
+        }
+    }
 }
 
 fn renderGpu(out: *Output, w: usize, h: usize) void {
@@ -706,9 +716,10 @@ fn lowPower() bool {
 /// Frame rate actually used: --fps, capped at 6 on the CPU renderer (~9 ms a
 /// frame at 1080p) and at 10 / 2 (GPU / CPU) under the power-saver profile.
 fn effectiveFps() f64 {
+    const hw = use_gpu and !software_gl;
     var f = opt_fps;
-    if (!use_gpu) f = @min(f, 6);
-    if (lowPower()) f = @min(f, @as(f64, if (use_gpu) 10.0 else 2.0));
+    if (!hw) f = @min(f, 6);
+    if (lowPower()) f = @min(f, @as(f64, if (hw) 10.0 else 2.0));
     return f;
 }
 
