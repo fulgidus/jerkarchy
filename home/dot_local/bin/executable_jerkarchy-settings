@@ -21,6 +21,7 @@ I_DISPLAY=$(printf '\363\260\215\271')   # U+F0379 monitor
 I_KEYS=$(printf '\363\260\214\214')      # U+F030C keyboard
 I_SESSION=$(printf '\363\260\220\245')   # U+F0425 power
 I_INFO=$(printf '\363\260\213\275')      # U+F02FD information-outline
+I_NOTIFY=$(printf '\363\260\202\232')    # U+F009A bell
 I_BACK=$(printf '\363\260\201\215')      # U+F004D arrow-left
 I_CHECK=$(printf '\363\260\204\254')     # U+F012C check
 I_CONTRAST=$(printf '\363\261\216\225')  # U+F1395 circle-half-full
@@ -118,6 +119,7 @@ $I_AUDIO  audio${TAB}audio"
     command -v nwg-displays >/dev/null && rows="$rows
 $I_DISPLAY  displays${TAB}displays"
     rows="$rows
+$I_NOTIFY  notifications${TAB}notify
 $I_KEYS  keybindings${TAB}keys
 $I_SESSION  session${TAB}session
 $I_INFO  about${TAB}about"
@@ -131,6 +133,7 @@ $I_INFO  about${TAB}about"
         bt)       exec "$bin/bt-menu" ;;
         audio)    exec "$bin/audio-mixer" ;;
         displays) exec nwg-displays ;;
+        notify)   exec "$bin/notify-menu" ;;
         keys)     exec "$HOME/.config/sway/show-bindings" ;;
         session)  exec "$bin/session-menu" ;;
         about)    about; exit 0 ;;

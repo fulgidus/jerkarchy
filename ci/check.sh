@@ -147,6 +147,29 @@ if jset theme tokyo-night >/dev/null 2>&1 || ! grep -q '^theme = "nord"' "$JH/.c
     bad "hand-edited file: must refuse and leave settings unchanged"
 else ok "refuses to clobber a hand-edited file"; fi
 
+step "notify-menu (stub makoctl / wl-copy / fuzzel)"
+NS="$TMP/notify-stub"; mkdir -p "$NS"
+cat >"$NS/makoctl" <<'EOF'
+#!/bin/sh
+case "$1 $2" in
+    "list -j")    echo '[{"id":7,"app_name":"a","summary":"Shown","body":"multi\nline","actions":{"x":"Do X"}}]' ;;
+    "history -j") echo '[{"id":3,"app_name":"b","summary":"Old","body":"","actions":{}}]' ;;
+    *) echo "$*" >>"$NS_LOG" ;;
+esac
+EOF
+printf '#!/bin/sh\ncat >"%s/clip"\n' "$NS" >"$NS/wl-copy"
+# fuzzel stub: record the rows, pick row $PICK's hidden column.
+printf '#!/bin/sh\ncat >"%s/rows"; awk -F"\\t" -v p="${PICK:-1}" "NR==p{print \\$2}" "%s/rows"\n' "$NS" "$NS" >"$NS/fuzzel"
+chmod +x "$NS"/*
+NM="$FAKEHOME/.local/bin/notify-menu"
+nm() { HOME="$FAKEHOME" NS_LOG="$NS/log" PATH="$NS:$PATH" "$NM" "$@"; }
+nm copy 7 && [ "$(cat "$NS/clip")" = "$(printf 'Shown\nmulti\nline')" ] && ok "copy: summary + body" || bad "copy: summary + body"
+nm copy 3 && [ "$(cat "$NS/clip")" = "Old" ] && ok "copy from history" || bad "copy from history"
+if nm copy 99 2>/dev/null; then bad "copy of a missing id must fail"; else ok "copy of a missing id fails"; fi
+PICK=1 nm 7 && grep -qx 'invoke -n 7 x' "$NS/log" && ok "menu: invokes the notification's action" || bad "menu: invoke action"
+PICK=3 nm 7 && grep -qx 'dismiss -n 7' "$NS/log" && ok "menu: dismiss" || bad "menu: dismiss"
+PICK=1 nm 3 && ! grep -q dismiss "$NS/rows" && ok "history entry: copy only, no dismiss" || bad "history entry rows"
+
 step "bar-battery against fake batteries (output must be valid JSON)"
 BB="$FAKEHOME/.local/bin/bar-battery"
 fake() {  # fake <status> <capacity> [charge_now] [current_now]
