@@ -137,7 +137,7 @@ elif need zig && need wayland-scanner; then
             wayland-scanner client-header "protocol/$p.xml" "$TMP/jw-gen/$p-client-protocol.h" &&
             wayland-scanner private-code "protocol/$p.xml" "$TMP/jw-gen/$p-protocol.c" || exit 1; done &&
         zig build-exe main.zig "$TMP"/jw-gen/*.c -I"$TMP/jw-gen" -I/usr/include -L/usr/lib \
-            -target x86_64-linux-gnu -lc -lwayland-client -O ReleaseFast -femit-bin="$TMP/jerkwall") >"$TMP/zig" 2>&1; then
+            -target x86_64-linux-gnu -lc -lwayland-client -lwayland-egl -lEGL -lGLESv2 -O ReleaseFast -femit-bin="$TMP/jerkwall") >"$TMP/zig" 2>&1; then
         ok "build"
         if "$TMP/jerkwall" --fps x >/dev/null 2>&1; then bad "rejects bad --fps"; else ok "rejects bad --fps"; fi
     else

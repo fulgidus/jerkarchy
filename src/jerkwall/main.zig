@@ -4,7 +4,9 @@
 //! d3-delaunay draws) and each triangle is filled with a subtle mix of the
 //! background and two accent colours, driven by a slowly moving noise field
 //! whose hue wanders over minutes. Drawn on the CPU into shared memory on the
-//! layer-shell *background* layer, a few frames per second: no GPU, little power.
+//! layer-shell *background* layer. Rendered on the GPU (EGL + GLES2, 4x MSAA)
+//! at 30 fps by default; falls back to a CPU/shm renderer (max 6 fps) when
+//! there's no usable EGL. --frame (lock screen PNG) always uses the CPU.
 //!
 //!   jerkwall [--fps N] [--points N] [--speed X] [--contrast X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB]
 //!   jerkwall [same options] [--at S] --frame W H FILE.png   render "now" (+S seconds) to a PNG and exit
@@ -26,6 +28,10 @@ const c = @cImport({
     @cInclude("time.h");
     @cInclude("fcntl.h");
     @cInclude("stdio.h");
+    @cInclude("wayland-egl.h");
+    @cInclude("EGL/egl.h");
+    @cInclude("EGL/eglext.h");
+    @cInclude("GLES2/gl2.h");
 });
 
 const gpa = std.heap.c_allocator;
@@ -34,7 +40,7 @@ const gpa = std.heap.c_allocator;
 
 const Rgb = struct { r: f64, g: f64, b: f64 };
 
-var opt_fps: f64 = 4;
+var opt_fps: f64 = 30; // GPU path; the CPU fallback is capped at 6 (see effectiveFps)
 var opt_points: usize = 140;
 var opt_speed: f64 = 1.0;
 var opt_contrast: f64 = 1.6; // accent strength (user default 1.6); 0.5 ≈ the first, subtler draft
@@ -229,6 +235,10 @@ fn pack(col: Rgb) u32 {
 
 /// Colour of a triangle with centroid (u, v) in [0,1]² at time t.
 fn facet(u: f64, v: f64, t: f64) u32 {
+    return pack(facetRgb(u, v, t));
+}
+
+fn facetRgb(u: f64, v: f64, t: f64) Rgb {
     // Slow noise field → how much accent shows.
     const n1 = 0.5 + 0.5 * @sin(u * 3.1 + t * 0.07) * @cos(v * 2.3 - t * 0.05);
     const n2 = 0.5 + 0.5 * @sin((u + v) * 4.0 - t * 0.11);
@@ -239,7 +249,7 @@ fn facet(u: f64, v: f64, t: f64) u32 {
     const k = std.math.clamp((0.06 + 0.39 * n1 * n2 + 0.10 * jitter) * opt_contrast, 0, 0.9);
     // Hue wanders between the two accents over minutes, varying across the screen.
     const h = 0.5 + 0.5 * @sin(t * 0.013 + u * 1.7 - v * 1.1);
-    return pack(mix(col_bg, mix(col_a, col_b, h), k));
+    return mix(col_bg, mix(col_a, col_b, h), k);
 }
 
 // ---------------------------------------------------------------- raster
@@ -304,7 +314,143 @@ const Output = struct {
     buffers: [2]Buffer = .{ .{}, .{} },
     tris: std.ArrayList(Tri) = .empty,
     verts: std.ArrayList(V) = .empty,
+    egl_window: ?*c.wl_egl_window = null,
+    egl_surface: c.EGLSurface = c.EGL_NO_SURFACE,
+    gl_verts: std.ArrayList(f32) = .empty,
 };
+
+// ---------------------------------------------------------------- GPU (EGL + GLES2)
+
+var egl_display: c.EGLDisplay = c.EGL_NO_DISPLAY;
+var egl_config: c.EGLConfig = null;
+var egl_context: c.EGLContext = c.EGL_NO_CONTEXT;
+var gl_ready = false; // context exists; program built on first makeCurrent
+var gl_prog: c.GLuint = 0;
+var gl_vbo: c.GLuint = 0;
+var gl_pos: c.GLint = 0;
+var gl_col: c.GLint = 0;
+var use_gpu = false;
+
+const vs_src =
+    \\attribute vec2 pos;
+    \\attribute vec3 col;
+    \\varying vec3 v_col;
+    \\void main() { v_col = col; gl_Position = vec4(pos, 0.0, 1.0); }
+;
+const fs_src =
+    \\precision mediump float;
+    \\varying vec3 v_col;
+    \\void main() { gl_FragColor = vec4(v_col, 1.0); }
+;
+
+/// Set up EGL on the Wayland display: GLES2, 4x MSAA if available. Any
+/// failure leaves use_gpu = false and the shm CPU renderer takes over.
+fn initGpu(display: *c.wl_display) void {
+    egl_display = c.eglGetPlatformDisplay(c.EGL_PLATFORM_WAYLAND_KHR, display, null);
+    if (egl_display == c.EGL_NO_DISPLAY) return;
+    if (c.eglInitialize(egl_display, null, null) != c.EGL_TRUE) return;
+    if (c.eglBindAPI(c.EGL_OPENGL_ES_API) != c.EGL_TRUE) return;
+    const base = [_]c.EGLint{
+        c.EGL_SURFACE_TYPE,    c.EGL_WINDOW_BIT,
+        c.EGL_RENDERABLE_TYPE, c.EGL_OPENGL_ES2_BIT,
+        c.EGL_RED_SIZE,        8,
+        c.EGL_GREEN_SIZE,      8,
+        c.EGL_BLUE_SIZE,       8,
+        c.EGL_SAMPLE_BUFFERS,  1,
+        c.EGL_SAMPLES,         4,
+        c.EGL_NONE,
+    };
+    var n: c.EGLint = 0;
+    if (c.eglChooseConfig(egl_display, &base, &egl_config, 1, &n) != c.EGL_TRUE or n < 1) {
+        // No MSAA config: retry without multisampling.
+        const plain = [_]c.EGLint{
+            c.EGL_SURFACE_TYPE, c.EGL_WINDOW_BIT, c.EGL_RENDERABLE_TYPE, c.EGL_OPENGL_ES2_BIT,
+            c.EGL_RED_SIZE,     8,                c.EGL_GREEN_SIZE,      8,
+            c.EGL_BLUE_SIZE,    8,                c.EGL_NONE,
+        };
+        if (c.eglChooseConfig(egl_display, &plain, &egl_config, 1, &n) != c.EGL_TRUE or n < 1) return;
+    }
+    const ctx_attr = [_]c.EGLint{ c.EGL_CONTEXT_CLIENT_VERSION, 2, c.EGL_NONE };
+    egl_context = c.eglCreateContext(egl_display, egl_config, c.EGL_NO_CONTEXT, &ctx_attr);
+    if (egl_context == c.EGL_NO_CONTEXT) return;
+    use_gpu = true;
+}
+
+fn compileShader(kind: c.GLenum, src: [*:0]const u8) c.GLuint {
+    const sh = c.glCreateShader(kind);
+    const srcs = [_][*c]const u8{src};
+    c.glShaderSource(sh, 1, &srcs, null);
+    c.glCompileShader(sh);
+    var okv: c.GLint = 0;
+    c.glGetShaderiv(sh, c.GL_COMPILE_STATUS, &okv);
+    if (okv == 0) fatal("shader compile failed", .{});
+    return sh;
+}
+
+fn buildProgram() void {
+    if (gl_ready) return;
+    gl_prog = c.glCreateProgram();
+    c.glAttachShader(gl_prog, compileShader(c.GL_VERTEX_SHADER, vs_src));
+    c.glAttachShader(gl_prog, compileShader(c.GL_FRAGMENT_SHADER, fs_src));
+    c.glLinkProgram(gl_prog);
+    var okv: c.GLint = 0;
+    c.glGetProgramiv(gl_prog, c.GL_LINK_STATUS, &okv);
+    if (okv == 0) fatal("shader link failed", .{});
+    gl_pos = c.glGetAttribLocation(gl_prog, "pos");
+    gl_col = c.glGetAttribLocation(gl_prog, "col");
+    c.glGenBuffers(1, &gl_vbo);
+    gl_ready = true;
+}
+
+fn renderGpu(out: *Output, w: usize, h: usize) void {
+    const scale: c_int = @max(1, out.scale);
+    if (out.egl_window == null) {
+        out.egl_window = c.wl_egl_window_create(out.surface, @intCast(w), @intCast(h));
+        out.egl_surface = c.eglCreatePlatformWindowSurface(egl_display, egl_config, out.egl_window, null);
+        if (out.egl_surface == c.EGL_NO_SURFACE) fatal("eglCreatePlatformWindowSurface failed", .{});
+    } else {
+        c.wl_egl_window_resize(out.egl_window, @intCast(w), @intCast(h), 0, 0);
+    }
+    if (c.eglMakeCurrent(egl_display, out.egl_surface, out.egl_surface, egl_context) != c.EGL_TRUE) return;
+    _ = c.eglSwapInterval(egl_display, 0); // we pace frames ourselves
+    buildProgram();
+
+    const fw: f64 = @floatFromInt(w);
+    const fh: f64 = @floatFromInt(h);
+    out.verts.clearRetainingCapacity();
+    for (points.items) |p| out.verts.append(gpa, .{ .x = p.x * fw, .y = p.y * fh }) catch return;
+    triangulate(out.verts.items, &out.tris) catch return;
+
+    out.gl_verts.clearRetainingCapacity();
+    for (out.tris.items) |tr| {
+        const vs = [3]V{ out.verts.items[tr.a], out.verts.items[tr.b], out.verts.items[tr.c] };
+        const u = (vs[0].x + vs[1].x + vs[2].x) / (3 * fw);
+        const v = (vs[0].y + vs[1].y + vs[2].y) / (3 * fh);
+        const col = facetRgb(u, v, scene_time);
+        for (vs) |p| {
+            out.gl_verts.appendSlice(gpa, &.{
+                @floatCast(p.x / fw * 2 - 1), @floatCast(1 - p.y / fh * 2),
+                @floatCast(col.r),            @floatCast(col.g),
+                @floatCast(col.b),
+            }) catch return;
+        }
+    }
+
+    c.wl_surface_set_buffer_scale(out.surface, scale);
+    c.glViewport(0, 0, @intCast(w), @intCast(h));
+    c.glClearColor(@floatCast(col_bg.r), @floatCast(col_bg.g), @floatCast(col_bg.b), 1);
+    c.glClear(c.GL_COLOR_BUFFER_BIT);
+    c.glUseProgram(gl_prog);
+    c.glBindBuffer(c.GL_ARRAY_BUFFER, gl_vbo);
+    c.glBufferData(c.GL_ARRAY_BUFFER, @intCast(out.gl_verts.items.len * 4), out.gl_verts.items.ptr, c.GL_STREAM_DRAW);
+    const stride: c.GLsizei = 5 * 4;
+    c.glEnableVertexAttribArray(@intCast(gl_pos));
+    c.glVertexAttribPointer(@intCast(gl_pos), 2, c.GL_FLOAT, c.GL_FALSE, stride, null);
+    c.glEnableVertexAttribArray(@intCast(gl_col));
+    c.glVertexAttribPointer(@intCast(gl_col), 3, c.GL_FLOAT, c.GL_FALSE, stride, @ptrFromInt(2 * 4));
+    c.glDrawArrays(c.GL_TRIANGLES, 0, @intCast(out.gl_verts.items.len / 5));
+    _ = c.eglSwapBuffers(egl_display, out.egl_surface);
+}
 
 var outputs: std.ArrayList(*Output) = .empty;
 
@@ -436,6 +582,7 @@ fn render(out: *Output) void {
     const scale: usize = @intCast(@max(1, out.scale));
     const w = out.width * scale;
     const h = out.height * scale;
+    if (use_gpu) return renderGpu(out, w, h);
     const buf = for (&out.buffers) |*b| {
         if (!b.busy) break b;
     } else return; // both in use by the compositor; skip this frame
@@ -527,6 +674,9 @@ fn registryRemove(_: ?*anyopaque, _: ?*c.wl_registry, name: u32) callconv(.c) vo
             c.wl_buffer_destroy(wb);
             _ = c.munmap(b.data.ptr, b.data.len * 4);
         };
+        if (out.egl_surface != c.EGL_NO_SURFACE) _ = c.eglDestroySurface(egl_display, out.egl_surface);
+        if (out.egl_window) |ew| c.wl_egl_window_destroy(ew);
+        out.gl_verts.deinit(gpa);
         out.tris.deinit(gpa);
         out.verts.deinit(gpa);
         c.wl_output_destroy(out.wl_output);
@@ -551,6 +701,15 @@ fn lowPower() bool {
     const v = buf[0..@intCast(n)];
     return std.mem.startsWith(u8, v, "low-power") or std.mem.startsWith(u8, v, "quiet") or
         std.mem.startsWith(u8, v, "cool");
+}
+
+/// Frame rate actually used: --fps, capped at 6 on the CPU renderer (~9 ms a
+/// frame at 1080p) and at 10 / 2 (GPU / CPU) under the power-saver profile.
+fn effectiveFps() f64 {
+    var f = opt_fps;
+    if (!use_gpu) f = @min(f, 6);
+    if (lowPower()) f = @min(f, @as(f64, if (use_gpu) 10.0 else 2.0));
+    return f;
 }
 
 fn now() f64 {
@@ -626,6 +785,8 @@ pub fn main(init: std.process.Init.Minimal) !void {
     if (c.wl_display_roundtrip(display) < 0) fatal("roundtrip failed", .{});
     if (compositor == null or shm == null) fatal("compositor lacks wl_compositor/wl_shm", .{});
     if (layer_shell == null) fatal("compositor lacks zwlr_layer_shell_v1 (not wlroots?)", .{});
+    if (std.c.getenv("JERKWALL_NO_GPU") == null) initGpu(display);
+    if (!use_gpu) std.debug.print("jerkwall: no usable EGL/GLES2, using the CPU renderer (max 6 fps)\n", .{});
     for (outputs.items) |out| setupOutput(out);
     _ = c.wl_display_roundtrip(display);
 
@@ -650,7 +811,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
         const t = now();
         if (t >= next_profile_check) {
-            frame = 1.0 / (if (lowPower()) @min(opt_fps, 1.0) else opt_fps);
+            frame = 1.0 / effectiveFps();
             next_profile_check = t + 5;
         }
         if (t >= next) {

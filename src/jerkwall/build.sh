@@ -11,6 +11,6 @@ done
 # -target x86_64-linux-gnu: zig's linker can't handle the .sframe relocations
 # in this system's crt1.o; use zig's bundled glibc crt instead.
 ${ZIG:-zig} build-exe main.zig gen/*.c -Igen -I/usr/include -L/usr/lib \
-    -target x86_64-linux-gnu -lc -lwayland-client -O ReleaseFast -femit-bin=jerkwall
+    -target x86_64-linux-gnu -lc -lwayland-client -lwayland-egl -lEGL -lGLESv2 -O ReleaseFast -femit-bin=jerkwall
 install -m755 jerkwall "$HOME/.local/bin/"
 echo "installed ~/.local/bin/jerkwall"
