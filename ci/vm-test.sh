@@ -9,7 +9,8 @@
 #   ci/vm-test.sh [--keep]     --keep: leave the VM running at the end (ssh hint printed)
 #
 # Needs: qemu-system-x86_64, qemu-img, KVM, python3, ssh, curl. ~4 GB RAM, ~6 GB disk.
-# Cache: ${XDG_CACHE_HOME:-~/.cache}/jerkarchy-vm (base image only).
+# Cache: ${XDG_CACHE_HOME:-~/.cache}/jerkarchy-vm (base image; run dirs, removed
+# afterwards unless --keep). Logs: $VM_TEST_OUT (default: the run dir).
 set -euo pipefail
 
 IMAGE_BUILD=20261001.604814
@@ -20,7 +21,10 @@ IMAGE_SHA256=360f0fa49db6813bdc8e35bed230a2dc2ae3567b7b5ab74719c0a706e4e34e87
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 CACHE=${XDG_CACHE_HOME:-$HOME/.cache}/jerkarchy-vm
 KEEP=0; [ "${1:-}" = --keep ] && KEEP=1
-RUN=$(mktemp -d "${TMPDIR:-/tmp}/jerkarchy-vm.XXXXXX")
+# On disk, not in /tmp: the guest's disk grows by GBs, and a full tmpfs
+# froze the guest mid-install (writes fail, ssh dies) without an error.
+mkdir -p "$CACHE"
+RUN=$(mktemp -d "$CACHE/run.XXXXXX")
 OUT=${VM_TEST_OUT:-$RUN/out}; mkdir -p "$OUT"
 SNAPSHOT=$(cat "$ROOT/SNAPSHOT")
 
@@ -32,7 +36,9 @@ QEMU_PID="" HTTP_PID=""
 cleanup() {
     cp "$RUN/serial.log" "$OUT/serial.log" 2>/dev/null || true
     [ -n "$HTTP_PID" ] && kill "$HTTP_PID" 2>/dev/null || true
-    if [ "$KEEP" = 0 ] && [ -n "$QEMU_PID" ]; then kill "$QEMU_PID" 2>/dev/null || true; fi
+    if [ "$KEEP" = 0 ]; then
+        [ -n "$QEMU_PID" ] && kill "$QEMU_PID" 2>/dev/null; sleep 1; rm -rf "$RUN"
+    fi
 }
 trap cleanup EXIT
 
