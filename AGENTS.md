@@ -56,6 +56,7 @@ home/             dotfiles (chezmoi naming: dot_, executable_, private_, empty_,
 src/<tool>/       source of compiled helpers (Zig) + build.sh; binaries are never committed
 install.sh        the whole installer; keep it short and readable
 README.md         user-facing, satirical, sourced (see §9)
+ROADMAP.md        what gets built, in which release, with which tools
 AGENTS.md         this file (CLAUDE.md → symlink)
 ```
 
