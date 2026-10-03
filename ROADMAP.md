@@ -11,7 +11,7 @@ Every release must pass the VM install test, not just "works on my laptop".
 | **v0.3.0 — screensaver** | full-screen terminal effect before the idle lock; any key → lock | terminaltexteffects ⚠ (what Omarchy uses) or cmatrix/cbonsai ⚠ |
 | **v0.4.0 — omakase profiles** | `install.sh --with docker,office,gaming,dev` | Docker ⚠, LibreOffice ⚠, Steam (Valve, clean), Neovim/VSCodium ⚠ |
 | **v0.5.0 — login screen** | themed login, VM-tested before it touches a real machine | greetd + tuigreet ⚠, or an SDDM theme |
-| **v0.6.0 — opt-in AI** | selection / screenshot / terminal assistant keys, off by default, local models only | llama.cpp ⚠ |
+| **v0.6.0 — opt-in AI** | selection / screenshot / terminal assistant keys, "ask about this" in the notification menu, off by default, local models only | llama.cpp ⚠ |
 | **v0.7.0 — updates** | `jerkarchy-update` = pull + `chezmoi apply` + rebuild helpers; **automatic snapshot bumps** (below) | chezmoi, GitHub Actions |
 | **v1.0.0 — ISO** | net-install ISO (< 2 GB) built in Actions, attached to a GitHub Release, installs jerkarchy on first boot | archiso |
 

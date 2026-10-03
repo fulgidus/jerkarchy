@@ -91,7 +91,7 @@ home/                 chezmoi source (dotfiles), applied to ~
   .config/waybar      bar config + style
   .config/fuzzel      launcher + bar-menu style
   .chezmoidata        themes (palettes) + default settings
-  .local/bin          jerkarchy-settings, jerkarchy-set, wifi-menu, bt-menu, bar-battery, power-profile,
+  .local/bin          jerkarchy-settings, jerkarchy-set, notify-menu, wifi-menu, bt-menu, bar-battery, power-profile,
                       sway-ws, session-{lock,logout,menu}, screenshot, volume…
 src/sway-binds        Zig: turns the sway config into the Super+H cheat sheet
 src/jerkwall          Zig: the live wallpaper (layer-shell, GLES2, CPU fallback)

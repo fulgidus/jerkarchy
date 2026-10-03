@@ -10,6 +10,11 @@ margin=8
 width=380
 default-timeout=6000
 layer=overlay
+# Left: menu (its actions, copy, dismiss, dismiss all). Right: dismiss.
+# Middle: copy the text. Dismissed ones stay in Settings › notifications.
+on-button-left=exec ~/.local/bin/notify-menu "$id"
+on-button-middle=exec ~/.local/bin/notify-menu copy "$id"
+on-button-right=dismiss
 
 [urgency=critical]
 border-color={{ $t.accent2 }}
