@@ -1,0 +1,175 @@
+#!/bin/sh
+# jerkarchy-settings — one drop-down for everything jerkarchy lets you change
+# (theme, wallpaper, power profile) plus shortcuts to the other bar menus.
+# Opened by the bar's gear and Super+Comma; a second click closes it.
+# Values are changed through jerkarchy-set, which re-renders and reloads.
+# Esc closes everything; "back" goes up one level.
+# Style: ~/.config/fuzzel/bar-menu.ini (shared with other bar menus).
+
+bin="$HOME/.local/bin"
+# Rows are "<shown> TAB <id>": fuzzel shows column 1 and prints column 2.
+menu() { fuzzel --config "$HOME/.config/fuzzel/bar-menu.ini" --dmenu --with-nth=1 --accept-nth=2 "$@"; }
+
+# Material Design Nerd Font icons as UTF-8 byte escapes (no raw glyphs in files).
+I_THEME=$(printf '\363\260\217\230')     # U+F03D8 palette
+I_WALL=$(printf '\363\260\270\211')      # U+F0E09 wallpaper
+I_PROFILE=$(printf '\363\260\223\205')   # U+F04C5 speedometer
+I_WIFI=$(printf '\363\260\226\251')      # U+F05A9 wifi
+I_BT=$(printf '\363\260\202\257')        # U+F00AF bluetooth
+I_AUDIO=$(printf '\363\260\225\276')     # U+F057E volume-high
+I_DISPLAY=$(printf '\363\260\215\271')   # U+F0379 monitor
+I_KEYS=$(printf '\363\260\214\214')      # U+F030C keyboard
+I_SESSION=$(printf '\363\260\220\245')   # U+F0425 power
+I_INFO=$(printf '\363\260\213\275')      # U+F02FD information-outline
+I_NOTIFY=$(printf '\363\260\202\232')    # U+F009A bell
+I_BACK=$(printf '\363\260\201\215')      # U+F004D arrow-left
+I_CHECK=$(printf '\363\260\204\254')     # U+F012C check
+I_CONTRAST=$(printf '\363\261\216\225')  # U+F1395 circle-half-full
+I_FPS=$(printf '\363\260\224\233')       # U+F051B timer-outline
+I_SPEED=$(printf '\363\260\221\256')     # U+F046E run-fast
+I_POINTS=$(printf '\363\261\201\211')    # U+F1049 graph
+TAB=$(printf '\t')
+
+pkill -f "^fuzzel --config $HOME/.config/fuzzel/bar-menu.ini" && exit 0
+
+get() { "$bin/jerkarchy-set" get "$1"; }
+mark() { [ "$1" = "$2" ] && printf '%s' "$I_CHECK" || printf ' '; }   # mark CURRENT CANDIDATE
+back_row() { printf '%s  back\tback\n' "$I_BACK"; }
+
+# theme_menu [GROUP] — themes without a group, plus one row per group
+# (flags, mono) that opens that group's list. Stays open after a pick so
+# themes can be tried one after another.
+theme_menu() {
+    group=${1:-}
+    while :; do
+        cur=$(get theme)
+        list=$("$bin/jerkarchy-set" themes)
+        cur_group=$(printf '%s\n' "$list" | awk -F"$TAB" -v c="$cur" '$1 == c { print $3 }')
+        rows=$(printf '%s\n' "$list" | while IFS="$TAB" read -r name title g; do
+                   [ "$g" = "$group" ] && printf '%s %s\t%s\n' "$(mark "$cur" "$name")" "$title" "$name"
+               done)
+        if [ -z "$group" ]; then
+            for g in flags mono; do
+                case $g in flags) label="flags ›" ;; mono) label="monochrome ›" ;; esac
+                rows="$rows
+$(mark "$cur_group" "$g") $label${TAB}group:$g"
+            done
+        fi
+        idx=$(printf '%s\n' "$rows" | awk -F"$TAB" -v c="$cur" -v g="group:$cur_group" '$2 == c || $2 == g { print NR - 1; exit }')
+        choice=$({ printf '%s\n' "$rows"; back_row; } |
+                 menu --prompt "theme${group:+ $group} › " --lines 20 --select-index "${idx:-0}")
+        case "$choice" in
+            "")      exit 0 ;;
+            back)    return ;;
+            group:*) theme_menu "${choice#group:}"; group="" ;;
+            *)       "$bin/jerkarchy-set" theme "$choice" >/dev/null ;;
+        esac
+    done
+}
+
+# value_menu KEY LABEL VALUES… — pick a preset or type any value. Plain rows
+# (no hidden column) so a typed value comes back as typed; the value is the
+# last word of a row either way.
+value_menu() {
+    key=$1 label=$2; shift 2
+    cur=$(get "$key")
+    choice=$({ for v in "$@"; do printf '%s %s\n' "$(mark "$cur" "$v")" "$v"; done; printf '%s  back\n' "$I_BACK"; } |
+             fuzzel --config "$HOME/.config/fuzzel/bar-menu.ini" --dmenu \
+                 --prompt "$label › " --placeholder "now $cur: pick or type a value" | awk '{ print $NF }')
+    case "$choice" in
+        "")   exit 0 ;;
+        back) return ;;
+        *)    "$bin/jerkarchy-set" "$key" "$choice" >/dev/null ;;
+    esac
+}
+
+wall_menu() {
+    while :; do
+        choice=$(printf '%s\n' \
+            "$I_CONTRAST  contrast  $(get wall_contrast)${TAB}contrast" \
+            "$I_FPS  fps       $(get wall_fps)${TAB}fps" \
+            "$I_SPEED  speed     $(get wall_speed)${TAB}speed" \
+            "$I_POINTS  points    $(get wall_points)${TAB}points" \
+            "$I_BACK  back${TAB}back" | menu --prompt 'wallpaper › ')
+        case "$choice" in
+            contrast) value_menu wall_contrast contrast 1 1.3 1.6 2 2.5 3 ;;
+            fps)      value_menu wall_fps fps 10 15 24 30 60 ;;
+            speed)    value_menu wall_speed speed 0.25 0.5 1 1.5 2 3 ;;
+            points)   value_menu wall_points points 60 100 140 200 300 ;;
+            back)     return ;;
+            *)        exit 0 ;;
+        esac
+    done
+}
+
+kb_menu() {
+    while :; do
+        choice=$(printf '%s\n' \
+            "$I_KEYS  layout   $(get kb_layout)${TAB}layout" \
+            "$I_KEYS  variant  $(get kb_variant)${TAB}variant" \
+            "$I_KEYS  options  $(get kb_options)${TAB}options" \
+            "$I_BACK  back${TAB}back" | menu --prompt 'keyboard › ')
+        case "$choice" in
+            layout)  value_menu kb_layout layout us gb de fr es it it,us de,us fr,us us,ru ;;
+            variant) value_menu kb_variant variant none intl ,intl dvorak colemak ;;
+            options) value_menu kb_options options none grp:alt_shift_toggle grp:win_space_toggle caps:escape ctrl:nocaps ;;
+            back)    return ;;
+            *)       exit 0 ;;
+        esac
+    done
+}
+
+profile_menu() {
+    cur=$("$bin/power-profile" get 2>/dev/null)
+    choice=$({ for p in power-saver balanced performance; do printf '%s %s\t%s\n' "$(mark "$cur" "$p")" "$p" "$p"; done; back_row; } |
+             menu --prompt 'power › ')
+    case "$choice" in
+        "")   exit 0 ;;
+        back) return ;;
+        *)    "$bin/power-profile" "$choice"; exit 0 ;;
+    esac
+}
+
+about() {
+    src=$(chezmoi source-path 2>/dev/null)
+    ver=$(git -C "${src%/home}" describe --tags --always --dirty 2>/dev/null || echo unknown)
+    notify-send -a jerkarchy "jerkarchy $ver" "theme: $(get theme)
+source: ${src%/home}
+settings: jerkarchy-set (CLI) or this menu
+bindings: Super+H"
+}
+
+while :; do
+    rows="$I_THEME  theme      $(get theme)${TAB}theme
+$I_WALL  wallpaper  $(get wall_contrast)× · $(get wall_fps) fps${TAB}wall
+$I_PROFILE  power      $("$bin/power-profile" get 2>/dev/null)${TAB}profile
+$I_WIFI  network${TAB}wifi
+$I_BT  bluetooth${TAB}bt
+$I_AUDIO  audio${TAB}audio"
+    command -v nwg-displays >/dev/null && rows="$rows
+$I_DISPLAY  displays${TAB}displays"
+    rows="$rows
+$I_KEYS  keyboard   $(get kb_layout)${TAB}keyboard"
+    rows="$rows
+$I_NOTIFY  notifications${TAB}notify
+$I_KEYS  keybindings${TAB}keys
+$I_SESSION  session${TAB}session
+$I_INFO  about${TAB}about"
+
+    choice=$(printf '%s\n' "$rows" | menu --prompt 'settings › ' --lines 14)
+    case "$choice" in
+        theme)    theme_menu ;;
+        wall)     wall_menu ;;
+        profile)  profile_menu ;;
+        keyboard) kb_menu ;;
+        wifi)     exec "$bin/wifi-menu" ;;
+        bt)       exec "$bin/bt-menu" ;;
+        audio)    exec "$bin/audio-mixer" ;;
+        displays) exec nwg-displays ;;
+        notify)   exec "$bin/notify-menu" ;;
+        keys)     exec "$HOME/.config/sway/show-bindings" ;;
+        session)  exec "$bin/session-menu" ;;
+        about)    about; exit 0 ;;
+        *)        exit 0 ;;
+    esac
+done

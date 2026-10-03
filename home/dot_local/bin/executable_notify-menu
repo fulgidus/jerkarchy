@@ -1,0 +1,71 @@
+#!/bin/sh
+# notify-menu — what to do with a notification, as a bar-style drop-down.
+# mako calls it on left click (`notify-menu <id>`): the notification's own
+# actions, copy its text, dismiss it, dismiss all. Without an id it lists
+# what's on screen plus the history (dismissed / expired), newest first, so
+# text can still be copied after the popup is gone.
+# Right click on a popup dismisses it, middle click copies it (mako config).
+#
+#   notify-menu [ID]        menu (for ID, or pick one first)
+#   notify-menu copy ID     copy "summary\nbody" to the clipboard
+#
+# Style: ~/.config/fuzzel/bar-menu.ini (shared with other bar menus).
+
+# Rows are "<shown> TAB <id>": fuzzel shows column 1 and prints column 2.
+menu() { fuzzel --config "$HOME/.config/fuzzel/bar-menu.ini" --dmenu --with-nth=1 --accept-nth=2 "$@"; }
+
+# Material Design Nerd Font icons as UTF-8 byte escapes (no raw glyphs in files).
+I_COPY=$(printf '\363\260\206\217')    # U+F018F content-copy
+I_CLOSE=$(printf '\363\260\205\226')   # U+F0156 close
+I_ALL=$(printf '\363\260\216\237')     # U+F039F notification-clear-all
+I_ACT=$(printf '\363\260\205\202')     # U+F0142 chevron-right
+I_BELL=$(printf '\363\260\202\232')    # U+F009A bell
+I_HIST=$(printf '\363\260\213\232')    # U+F02DA history
+
+# Every notification mako knows, as JSON lines tagged with where it lives.
+all_json() {
+    { makoctl list -j | jq -c '.[] | . + {where: "shown"}'
+      makoctl history -j | jq -c '.[] | . + {where: "history"}'; } 2>/dev/null
+}
+find_json() { all_json | jq -c --argjson id "$1" 'select(.id == $id)' | head -1; }
+
+copy() {
+    n=$(find_json "$1"); [ -n "$n" ] || exit 1
+    printf '%s' "$n" | jq -j '.summary + (if (.body // "") != "" then "\n" + .body else "" end)' | wl-copy
+}
+
+case "${1:-}" in
+    copy) [ -n "${2:-}" ] || exit 2; copy "$2"; exit ;;
+esac
+
+pkill -f "^fuzzel --config $HOME/.config/fuzzel/bar-menu.ini" && exit 0
+
+id=${1:-}
+if [ -z "$id" ]; then
+    # One row per notification: icon, app, summary (body preview), newest first.
+    id=$(all_json | jq -rs --arg shown "$I_BELL" --arg hist "$I_HIST" '
+            sort_by(-.id)[] |
+            "\(if .where == "shown" then $shown else $hist end)  \(.app_name // "?"): \(.summary)\(if (.body // "") != "" then " — " + (.body | gsub("\\s+"; " ")) else "" end)" [0:90]
+            + "\t\(.id)"' |
+         menu --prompt 'notifications › ' --placeholder 'pick one to copy or dismiss' --width 60)
+    [ -n "$id" ] || exit 0
+fi
+
+n=$(find_json "$id")
+[ -n "$n" ] || exit 0
+where=$(printf '%s' "$n" | jq -r .where)
+summary=$(printf '%s' "$n" | jq -r '.summary | gsub("\\s+"; " ") | .[0:40]')
+
+# The notification's own actions first (only while it's on screen), then ours.
+choice=$({ [ "$where" = shown ] && printf '%s' "$n" | jq -r --arg i "$I_ACT" '.actions | to_entries[] | "\($i)  \(.value)\tact:\(.key)"'
+           printf '%s  copy text\tcopy\n' "$I_COPY"
+           [ "$where" = shown ] && printf '%s  dismiss\tdismiss\n%s  dismiss all\tdismiss-all\n' "$I_CLOSE" "$I_ALL"
+         } | menu --prompt 'notification › ' --placeholder "$summary")
+
+case "$choice" in
+    "")          exit 0 ;;
+    copy)        copy "$id" ;;
+    dismiss)     makoctl dismiss -n "$id" ;;
+    dismiss-all) makoctl dismiss --all ;;
+    act:*)       makoctl invoke -n "$id" "${choice#act:}" ;;
+esac

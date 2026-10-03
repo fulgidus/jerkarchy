@@ -1,0 +1,21 @@
+{{- $t := index .themes .theme -}}
+font=JetBrains Mono NF 11
+background-color={{ $t.bg }}ee
+text-color={{ $t.fg }}
+border-color={{ $t.accent }}
+border-size=1
+border-radius=0
+padding=10
+margin=8
+width=380
+default-timeout=6000
+layer=overlay
+# Left: menu (its actions, copy, dismiss, dismiss all). Right: dismiss.
+# Middle: copy the text. Dismissed ones stay in Settings › notifications.
+on-button-left=exec ~/.local/bin/notify-menu "$id"
+on-button-middle=exec ~/.local/bin/notify-menu copy "$id"
+on-button-right=dismiss
+
+[urgency=critical]
+border-color={{ $t.accent2 }}
+default-timeout=0

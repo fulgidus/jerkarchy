@@ -1,11 +1,9 @@
-# swaylock — wallpaper + always-visible ring so a locked screen never
-# looks like a dead one. Palette matches river/waybar.
-{{- $wall := joinPath .chezmoi.homeDir ".local/share/backgrounds/wallpaper.png" }}
-{{- if stat $wall }}
-image={{ $wall }}
-{{- end }}
+{{- $t := index .themes .theme -}}
+# swaylock — ring always visible so a locked screen never looks like a dead
+# one. The background image is passed by session-lock (the live wallpaper's
+# current frame, per output); color= is the fallback.
 scaling=fill
-color=0a0a0f
+color={{ $t.bg | trimPrefix "#" }}
 indicator-idle-visible
 indicator-radius=90
 indicator-thickness=8
@@ -13,25 +11,25 @@ show-failed-attempts
 ignore-empty-password
 font=JetBrainsMono Nerd Font
 
-inside-color=0a0a0fcc
-ring-color=00f0ffff
+inside-color={{ $t.bg | trimPrefix "#" }}cc
+ring-color={{ $t.accent | trimPrefix "#" }}ff
 line-color=00000000
 separator-color=00000000
-text-color=c8c8d0ff
-key-hl-color=ff2b6dff
-bs-hl-color=ffcc00ff
+text-color={{ $t.fg | trimPrefix "#" }}ff
+key-hl-color={{ $t.accent2 | trimPrefix "#" }}ff
+bs-hl-color={{ $t.warn | trimPrefix "#" }}ff
 
-inside-ver-color=0a0a0fcc
-ring-ver-color=00ff9fff
-text-ver-color=00ff9fff
+inside-ver-color={{ $t.bg | trimPrefix "#" }}cc
+ring-ver-color={{ $t.ok | trimPrefix "#" }}ff
+text-ver-color={{ $t.ok | trimPrefix "#" }}ff
 
-inside-wrong-color=0a0a0fcc
-ring-wrong-color=ff2b6dff
-text-wrong-color=ff2b6dff
+inside-wrong-color={{ $t.bg | trimPrefix "#" }}cc
+ring-wrong-color={{ $t.accent2 | trimPrefix "#" }}ff
+text-wrong-color={{ $t.accent2 | trimPrefix "#" }}ff
 
-inside-clear-color=0a0a0fcc
-ring-clear-color=ffcc00ff
-text-clear-color=ffcc00ff
+inside-clear-color={{ $t.bg | trimPrefix "#" }}cc
+ring-clear-color={{ $t.warn | trimPrefix "#" }}ff
+text-clear-color={{ $t.warn | trimPrefix "#" }}ff
 
-layout-bg-color=0a0a0fcc
-layout-text-color=c8c8d0ff
+layout-bg-color={{ $t.bg | trimPrefix "#" }}cc
+layout-text-color={{ $t.fg | trimPrefix "#" }}ff

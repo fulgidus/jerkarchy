@@ -1,0 +1,23 @@
+#!/bin/sh
+# audio-mixer — toggle a drop-down PipeWire mixer (wiremix, TUI) under the
+# bar's right end, like wifi-menu/bt-menu. Bound to the volume item's
+# right-click and Ctrl+Alt+V. wiremix is in Arch's official repos.
+W=760 H=460 MARGIN=6 TOP=30
+
+pkill -f '^/usr/bin/wezterm-gui start .*--class audio-mixer' && exit 0
+command -v wiremix >/dev/null || { notify-send -a audio "wiremix not installed" "sudo pacman -S wiremix"; exit 1; }
+
+wezterm start --always-new-process --class audio-mixer -- wiremix &
+
+# Place it top-right of the focused output once the window exists (sway
+# rules can't do "right edge minus width").
+if [ -n "$SWAYSOCK" ]; then
+    ow=$(swaymsg -t get_outputs -r | jq '.[] | select(.focused) | .rect.width')
+    for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+        if swaymsg -t get_tree -r | jq -e '.. | objects | select(.app_id? == "audio-mixer")' >/dev/null; then
+            swaymsg -q "[app_id=\"audio-mixer\"] resize set $W $H, move position $((ow - W - MARGIN)) $TOP"
+            break
+        fi
+        sleep 0.1
+    done
+fi

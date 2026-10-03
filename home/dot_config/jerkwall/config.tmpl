@@ -1,0 +1,15 @@
+{{- $t := index .themes .theme -}}
+# jerkwall options, written by chezmoi from the active theme and the wall_*
+# settings (change them with jerkarchy-settings or jerkarchy-set, not here).
+# Colours are bare hex: '#' starts a comment in this file.
+--bg {{ $t.bg | trimPrefix "#" }}
+{{- if hasKey $t "wall" }}
+--stops {{ range $i, $c := $t.wall }}{{ if $i }},{{ end }}{{ $c | trimPrefix "#" }}{{ end }}
+{{- else }}
+--a {{ $t.accent | trimPrefix "#" }}
+--b {{ $t.accent2 | trimPrefix "#" }}
+{{- end }}
+--contrast {{ .wall_contrast }}
+--fps {{ .wall_fps }}
+--speed {{ .wall_speed }}
+--points {{ .wall_points }}

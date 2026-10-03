@@ -26,15 +26,31 @@ works if the thing actually works — so quality rules below are strict.
   | `release/<X.Y.Z>` | `develop` | `main` **and** `develop` | version bump, final checks, tag on `main` |
   | `hotfix/<X.Y.Z>` | `main` | `main` **and** `develop` | urgent fix to a release, tag on `main` |
 
+- `develop` is the **default branch** on Forgejo.
+- **`main` is protected: no pushes, only pull-request merges on Forgejo.**
+  A release or hotfix is a PR (`release/X.Y.Z` → `main`, or
+  `hotfix/X.Y.Z` → `main`) that the user reviews and merges. After the merge:
+  tag `vX.Y.Z` on the merge commit (annotated tag), push the tag, and merge
+  `main` back into `develop`. Tags are mirrored to GitHub too.
 - Merges use `--no-ff`. Delete merged `feature/*` branches (local and remote).
 - **Agents never commit to `main` or `develop` directly**: work on
   `feature/*`, push it, and merge into `develop` when it's finished and
-  verified (§4). Release and hotfix merges into `main` are **outward-facing**
-  (they reach GitHub): only with the user's go-ahead.
+  verified (§4). Anything that reaches `main` (PRs, tags) is
+  **outward-facing**: only with the user's go-ahead.
+- **Releasing:** on `release/X.Y.Z`, set `VERSION` to `X.Y.Z` and add a
+  `## vX.Y.Z` section to `CHANGELOG.md`. When `main` reaches GitHub, CI runs
+  the checks, then publishes the GitHub release (tag + binaries it built,
+  notes from the changelog) if it doesn't exist yet, and deploys `site/` to
+  GitHub Pages. The push mirror only carries `main`, so tags on GitHub come
+  from that release step.
+- Versions: `v0.0.0` is the first tag. Bump semver per release: patch for
+  fixes, minor for new features or binds, major for breaking changes to the
+  layout or installer.
 - Never force-push `main` or `develop`. Never rewrite history someone else
   pushed; merge it.
 - Commit messages: imperative summary line (≤ 72 chars), a body explaining
-  *why* when it isn't obvious. Agents add a `Co-Authored-By:` trailer.
+  *why* when it isn't obvious. **No `Co-Authored-By:` or other tool/agent
+  attribution** in commits, PRs, tags, or files. The user is the author.
 - No secrets, ever: Wi-Fi passwords, tokens, keys, `.bak` files, personal
   data. Scan before committing.
 
@@ -44,8 +60,16 @@ works if the thing actually works — so quality rules below are strict.
 .chezmoiroot      → "home": chezmoi's source lives in home/
 home/             dotfiles (chezmoi naming: dot_, executable_, private_, empty_, *.tmpl)
 src/<tool>/       source of compiled helpers (Zig) + build.sh; binaries are never committed
+                  (sway-binds: binding list; jerkwall: live Delaunay wallpaper)
 install.sh        the whole installer; keep it short and readable
-README.md         user-facing, satirical, sourced (see §8)
+SNAPSHOT          Arch Linux Archive date (YYYY-MM-DD) that builds install from
+ci/check.sh       all automated checks (local + GitHub Actions)
+ci/vm-test.sh     end-to-end install test in a QEMU VM (before every release)
+site/             the GitHub Pages site (deployed from main by CI)
+VERSION           the version main releases; CHANGELOG.md has its notes
+.github/          CI workflow (runs on main only; GitHub sees nothing else)
+README.md         user-facing, satirical, sourced (see §9)
+ROADMAP.md        what gets built, in which release, with which tools
 AGENTS.md         this file (CLAUDE.md → symlink)
 ```
 
@@ -84,17 +108,42 @@ live; they change.
   Framework patrons), network-manager-applet (IBM → Red Hat), iwd/ConnMan
   (Intel), Ghostty, CachyOS (Framework sponsorship), mise (Omacom Foundation).
   Clean — sway/wlroots, waybar, fuzzel, mako, nwg-drawer, autotiling, wezterm,
-  starship, swaylock, blueman, pwvucontrol, COSMIC.
+  starship, swaylock, blueman, pwvucontrol (not in Arch repos), wiremix, shellcheck,
+  COSMIC, thunar (XFCE). Accepted as test-only tooling despite a hit: QEMU
+  (Red Hat → IBM), github-cli (GitHub → Microsoft; CI release step only).
+  Firefox (and so LibreWolf) is a lineage hit (Brendan Eich, Mozilla
+  co-founder, is on the weird-guys list): the user's choice, never installed
+  by jerkarchy.
 - **Check that a program exists before wiring it in** (`command -v`). Do not
   copy app names from old configs (this repo already shipped dead binds to
   `codium`, `blueman`, `pavucontrol`). If something isn't installed, either
   ask the user to install it or add a visible fallback — never a silent no-op.
+- **Packages must be in Arch's official repos** (`core`/`extra`): the user's
+  machine has CachyOS repos, plain Arch doesn't. Check against the pinned
+  `SNAPSHOT` database, not the local `pacman -Si`. (pwvucontrol was CachyOS-only
+  and broke install.sh; the VM test caught it.)
 - Never install system packages yourself; the user runs `sudo`. Give them the
   exact command.
 
 ## 4. Verify before you claim
 
 "It should work" is not done. Done means you saw it work.
+
+- **`ci/check.sh` must pass before any merge into `develop`.** It renders the
+  dotfiles with chezmoi into a temp home and runs every automated check
+  (shell syntax, shellcheck, `sway -C`, waybar JSON, fuzzel configs,
+  `bar-battery` edge cases, hygiene, the Zig build). GitHub Actions runs the
+  same script on `main`, inside an Arch container pinned to `SNAPSHOT`. When
+  you add a check, prove it can fail (break the thing once in a throwaway
+  worktree).
+- **`ci/vm-test.sh` must pass before every release** (and after any change to
+  `install.sh` or the package list). It boots the pinned Arch cloud image in
+  QEMU/KVM, pins pacman to `SNAPSHOT`, runs `install.sh` from the current
+  commit, starts sway headless and checks the desktop comes up, plus a
+  screenshot. Its first run caught three real bugs (a CachyOS-only package,
+  missing Xwayland, missing pipewire-pulse) that local checks never could.
+- **`SNAPSHOT`** holds the Arch Linux Archive date that CI (and later the VM
+  test and installer) install from. Bump it deliberately, never by accident.
 
 - **sway config:** `sway -C -c home/dot_config/sway/config` must exit 0 with
   no warnings. Then `swaymsg reload` on the live session if appropriate.
@@ -114,6 +163,13 @@ live; they change.
   Output consumed by waybar must stay valid JSON in every case.
 - Say plainly what you could *not* test (clicks, hover tooltips, real
   pairing/connecting, multi-monitor) instead of implying it was tested.
+- **Never let tests reach the live session.** Test clients on the user's
+  D-Bus session posted real notifications (19 wezterm errors, 5 from
+  `ci/check.sh`) and crashed the live waybar (GApplication uniqueness).
+  `ci/headless-sway.sh` gives each test sway a private bus and `ci/check.sh`
+  points at a dead one; keep it that way for anything new. Build scripts that install
+  into `~/.local/bin` (`src/*/build.sh`) replace the live binary: build
+  elsewhere (`zig build-exe … -femit-bin=$TMP/…`) for experiments.
 - **The user can't see your tool output.** Screenshots and renders you view
   are visible only to you. To show the user something visual, open it on
   their screen (`swaymsg exec qview <file>`) or save it under `~/Pictures`
@@ -160,12 +216,28 @@ live; they change.
 
 ## 7. Look and feel
 
-- Palette (use these exact values): background `#0a0a0f`, text `#c8c8d0`,
-  bright text `#e5e1e7`, dim `#55556a`/`#8a8aa0`, borders `#2a2a35`,
+- **Colours come from themes, never from configs.** Palettes live in
+  `home/.chezmoidata/themes.toml` (one table per theme, same roles: `bg`,
+  `bg_alt`, `border`, `fg`, `fg_bright`, `fg_dim`, `fg_mute`, `accent`,
+  `accent2`, `ok`, `warn`, `err`, 16 `ansi`). Anything with a colour is a
+  `.tmpl` that starts with `{{- $t := index .themes .theme -}}` and uses
+  `{{ $t.accent }}` etc. A new theme takes its palette from that theme's own
+  upstream project (`source`), not from another distro, and must pass
+  `ci/check.sh` (it renders and validates every theme). Flag themes take
+  their colours from the flag's SVG on Wikimedia Commons. Optional fields:
+  `group` (`flags` or `mono`: a sub-list in the theme menu) and `wall`
+  (2–12 colours for the wallpaper gradient, instead of `accent`/`accent2`).
+- **Settings** (`theme`, `wall_*`): defaults in
+  `home/.chezmoidata/settings.toml`, the user's values in the `[data]`
+  section of `~/.config/chezmoi/chezmoi.toml`. Change them only through
+  `jerkarchy-set` (the menu, `jerkarchy-settings`, calls it); it refuses to
+  run over hand-edited files. A new setting needs: a default, validation in
+  `jerkarchy-set`, a reload step, and a menu entry.
+- The default theme, `jerkarchy`: background `#0a0a0f`, text `#c8c8d0`,
   **cyan `#00f0ff`** (focus/accent), **magenta `#ff2b6d`** (alerts,
   discharging, performance), green `#00ff9f` (charging, power-saver), yellow
   `#ffcc00` (caffeine, warnings). Font: JetBrainsMono Nerd Font. Square
-  corners, 1–2 px borders, no animations.
+  corners, 1–2 px borders, no animations (all themes).
 - **Bar popups must look like the bar**: fuzzel drop-downs anchored top-right
   under the bar, styled by `home/dot_config/fuzzel/bar-menu.ini`
   (`wifi-menu`, `bt-menu` are the reference). No centered generic windows
@@ -195,8 +267,8 @@ live; they change.
 - Report list memberships as facts ("has an entry on the fashware list"),
   attribute the lists' reasons to their authors, and never add contact
   details or anything that facilitates harassment.
-- Keep the hypocrisy section honest and current (who wrote this, where it's
-  mirrored).
+- Keep the hypocrisy section honest and current, without naming or promoting
+  specific AI products.
 - License: X11, `Copyright (c) 2026 Alessio Corsi`. Credit is required;
   using the author's name to promote forks is not allowed. Don't change the
   license text.

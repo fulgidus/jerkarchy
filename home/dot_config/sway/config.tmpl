@@ -1,3 +1,4 @@
+{{- $t := index .themes .theme -}}
 # sway config — ported from ~/.config/river/init, keybinds mirror the old
 # Hyprland/caelestia layout. Tree tiling (i3-style): every split is a node,
 # autotiling splits the *focused* window along its longer side (Hyprland
@@ -16,10 +17,16 @@ include /etc/sway/config.d/*
 # ------------------------------------------------------------------
 # Input
 # ------------------------------------------------------------------
+# Layout: kb_layout / kb_variant / kb_options settings (jerkarchy-settings ›
+# keyboard, or jerkarchy-set). Defaults: us, no variant, no options.
 input type:keyboard {
-    xkb_layout it,us
-    xkb_variant ,intl
-    xkb_options grp:alt_shift_toggle
+    xkb_layout {{ .kb_layout }}
+{{- if .kb_variant }}
+    xkb_variant {{ .kb_variant }}
+{{- end }}
+{{- if .kb_options }}
+    xkb_options {{ .kb_options }}
+{{- end }}
     repeat_delay 250
     repeat_rate 35
 }
@@ -31,12 +38,15 @@ input type:touchpad {
 }
 focus_follows_mouse yes
 mouse_warping container
-seat * xcursor_theme sweet-cursors 24
+seat * xcursor_theme Adwaita 24
 
 # ------------------------------------------------------------------
 # Look
 # ------------------------------------------------------------------
-output * bg ~/.local/share/backgrounds/wallpaper.png fill #0a0a0f
+# No swaybg at all: jerkwall (Autostart) is the wallpaper. swaybg would
+# compete with it on the background layer and can end up on top after a
+# reload; sway spawns it even without an `output * bg` line unless disabled.
+swaybg_command -
 font pango:JetBrainsMono Nerd Font 10
 default_border pixel 2
 default_floating_border pixel 2
@@ -46,15 +56,15 @@ gaps outer 0
 smart_borders off
 
 # class                 border   bg       text     indicator child_border
-client.focused          #00f0ff  #0a0a0f  #e5e1e7  #ff2b6d   #00f0ff
-client.focused_inactive #2a2a35  #0a0a0f  #8a8aa0  #2a2a35   #2a2a35
-client.unfocused        #2a2a35  #0a0a0f  #55556a  #2a2a35   #2a2a35
-client.urgent           #ff2b6d  #0a0a0f  #e5e1e7  #ff2b6d   #ff2b6d
+client.focused          {{ $t.accent }}  {{ $t.bg }}  {{ $t.fg_bright }}  {{ $t.accent2 }}   {{ $t.accent }}
+client.focused_inactive {{ $t.border }}  {{ $t.bg }}  {{ $t.fg_dim }}  {{ $t.border }}   {{ $t.border }}
+client.unfocused        {{ $t.border }}  {{ $t.bg }}  {{ $t.fg_mute }}  {{ $t.border }}   {{ $t.border }}
+client.urgent           {{ $t.accent2 }}  {{ $t.bg }}  {{ $t.fg_bright }}  {{ $t.accent2 }}   {{ $t.accent2 }}
 
 for_window [app_id="sway-help"] floating enable, resize set 1100 800, move position center
 for_window [app_id="tui-float"] floating enable, resize set 900 600, move position center
 for_window [app_id="blueman-manager"] floating enable
-for_window [app_id="com.saivert.pwvucontrol|pavucontrol|org.pulseaudio.pavucontrol"] floating enable, resize set 900 600, move position center
+for_window [app_id="audio-mixer"] floating enable, border pixel 1, sticky enable
 for_window [window_role="pop-up"] floating enable
 for_window [window_type="dialog"] floating enable
 
@@ -67,6 +77,8 @@ bindsym $mod+a exec nwg-drawer
 bindsym $mod+space exec pkill fuzzel || fuzzel
 #: session menu (lock, logout, suspend, reboot, poweroff)
 bindsym Ctrl+Alt+Delete exec $bin/session-menu
+#: settings (theme, wallpaper, power, network, …)
+bindsym $mod+comma exec $bin/jerkarchy-settings
 #: show these bindings
 bindsym $mod+h exec ~/.config/sway/show-bindings
 #: show these bindings
@@ -85,14 +97,14 @@ bindsym $mod+Ctrl+r reload
 bindsym $mod+t exec $term
 #: terminal (wezterm)
 bindsym $mod+Return exec $term
-#: browser (librewolf)
-bindsym $mod+w exec librewolf
+#: browser (librewolf, else $BROWSER)
+bindsym $mod+w exec $bin/open-browser
 #: editor (VSCodium, else Code - OSS)
 bindsym $mod+c exec $bin/open-editor
 #: file manager (thunar)
 bindsym $mod+e exec thunar
-#: audio mixer (pwvucontrol)
-bindsym Ctrl+Alt+v exec pwvucontrol
+#: audio mixer (wiremix drop-down)
+bindsym Ctrl+Alt+v exec $bin/audio-mixer
 #: clipboard history: paste an entry
 bindsym $mod+v exec pkill fuzzel || cliphist list | fuzzel --dmenu | cliphist decode | wl-copy
 #: clipboard history: delete an entry
@@ -281,6 +293,9 @@ bindsym --locked XF86MonBrightnessDown exec brightnessctl set 5%-
 # swaybar_command as a bare program name (no shell), so arguments break it.
 exec waybar -c ~/.config/waybar/sway.jsonc
 exec autotiling
+# Live Delaunay wallpaper (src/jerkwall); options in ~/.config/jerkwall/config
+# (from the theme and wall_* settings: jerkarchy-settings).
+exec $bin/jerkwall
 # XDG autostart entries (/etc/xdg/autostart, ~/.config/autostart): sway doesn't
 # run them itself. sway-session.target (~/.config/systemd/user) pulls in
 # systemd's xdg-desktop-autostart.target, which honours OnlyShowIn/NotShowIn.

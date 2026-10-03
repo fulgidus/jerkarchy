@@ -1,0 +1,28 @@
+#!/bin/sh
+{{ $t := index .themes .theme -}}
+# Lock the session with swaylock (ring always visible; look in
+# ~/.config/swaylock/config). The background is the wallpaper's current frame:
+# jerkwall's scene is a function of the clock, so `jerkwall --frame` renders
+# exactly what the wallpaper shows right now — one PNG per output, at its
+# native resolution. Never a screenshot: open windows don't end up on disk.
+# -f: fork once the lock is engaged, so swayidle's before-sleep waits for it.
+# waylock (Zig) was tried first but shows only a flat colour by design.
+
+if ! command -v swaylock >/dev/null; then
+    exec waylock -fork-on-lock -ignore-empty-password \
+        -init-color 0x1a2a40 -input-color 0x{{ $t.accent | trimPrefix "#" }} -fail-color 0x{{ $t.accent2 | trimPrefix "#" }}
+fi
+
+dir="${XDG_RUNTIME_DIR:-/tmp}/jerkwall-lock"
+set --
+jw="$HOME/.local/bin/jerkwall"  # full path: sway-spawned processes may lack ~/.local/bin in PATH
+if [ -n "$SWAYSOCK" ] && [ -x "$jw" ]; then
+    mkdir -p "$dir" && chmod 700 "$dir"
+    rm -f "$dir"/*.png
+    swaymsg -t get_outputs -r |
+        jq -r '.[] | select(.active) | "\(.name) \(.current_mode.width) \(.current_mode.height)"' > "$dir/outputs"
+    while read -r name w h; do
+        "$jw" --frame "$w" "$h" "$dir/$name.png" 2>/dev/null && set -- "$@" -i "$name:$dir/$name.png"
+    done < "$dir/outputs"
+fi
+exec swaylock -f "$@"

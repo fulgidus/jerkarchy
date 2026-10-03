@@ -18,10 +18,11 @@ jerkarchy is an opinionated desktop setup for Arch-based systems, built on
 ## Install
 
 ```sh
-curl -fsSL https://git.fulgid.us/fulgidus/jerkarchy/raw/branch/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/fulgidus/jerkarchy/main/install.sh | bash
 ```
 
-(While the repo is private, clone it and run `./install.sh` instead.)
+Or clone it and run `./install.sh`. Releases:
+[github.com/fulgidus/jerkarchy/releases](https://github.com/fulgidus/jerkarchy/releases).
 
 That's it. That's the product. It installs some packages, runs
 [chezmoi](https://www.chezmoi.io/), and builds one small Zig tool. No ISO, no
@@ -43,7 +44,9 @@ themes, a dev stack and a nice installer. jerkarchy gives you:
 | Keybinding cheat sheet | static | **generated from the config** (`Super+H`) |
 | Workspaces that appear when you walk into them | yes | yes |
 | Installer | ISO, 5 questions | `curl \| bash`, 0 questions |
-| Themes | 20+ | 1. It's cyan. |
+| Wallpaper | a folder of images | a **live** Delaunay mesh that drifts and slowly shifts colour, written in Zig, GPU-drawn at 30 fps (CPU fallback), slows down on power-saver |
+| Themes | 20+ | 48: 19 classics from their upstream projects (Tokyo Night, Catppuccin, Gruvbox, Nord, Rosé Pine, …), 5 flags (queer, bi, trans, polyam, antifa) and 24 monochrome (12 hues × dark/light). The default is still cyan. |
+| Settings | ? | one drop-down (gear on the bar, `Super+,`): theme, wallpaper, power, network, … and a CLI, `jerkarchy-set` |
 | AI agents | built in | the author vibe-coded the whole thing, so: *built out* |
 | Funding | ~$15.5M pledged | $0 |
 
@@ -72,13 +75,12 @@ entries and their sources, and decide for yourself.
 
 ## Full disclosure (the hypocrisy section)
 
-- This repo was vibe-coded with **Claude**, made by **Anthropic** — one of the
-  companies pledging tokens to the Omacom Foundation, and on the fashware list
-  itself. We know. That's the joke, and also the point: the tooling isn't the
-  moat. Anyone can do this.
-- It's mirrored to **GitHub** (Microsoft, also on the list) purely to burn
-  their CI minutes. The source of truth is
-  [git.fulgid.us](https://git.fulgid.us/fulgidus/jerkarchy).
+- This repo was vibe-coded with an AI assistant from one of the labs pledging
+  tokens to the Omacom Foundation. We know. That's the joke, and also the
+  point: the tooling isn't the moat. Anyone can do this.
+- The public copy, the CI and the website live on **GitHub** (Microsoft,
+  also on the list), mostly to burn their CI minutes. The source of truth is
+  a self-hosted Forgejo; GitHub gets a mirror of `main`.
 - It runs on Linux, which Intel, Google, Red Hat, AMD and Meta co-develop. You
   can't escape everything. You can stop paying for flags.
 
@@ -89,9 +91,11 @@ home/                 chezmoi source (dotfiles), applied to ~
   .config/sway        sway config: binds, rules, workspaces, monitors
   .config/waybar      bar config + style
   .config/fuzzel      launcher + bar-menu style
-  .local/bin          wifi-menu, bt-menu, bar-battery, power-profile,
+  .chezmoidata        themes (palettes) + default settings
+  .local/bin          jerkarchy-settings, jerkarchy-set, notify-menu, wifi-menu, bt-menu, bar-battery, power-profile,
                       sway-ws, session-{lock,logout,menu}, screenshot, volume…
 src/sway-binds        Zig: turns the sway config into the Super+H cheat sheet
+src/jerkwall          Zig: the live wallpaper (layer-shell, GLES2, CPU fallback)
 install.sh            the entire "installer"
 ```
 

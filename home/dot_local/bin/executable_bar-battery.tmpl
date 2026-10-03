@@ -1,13 +1,35 @@
 #!/bin/sh
+{{ $t := index .themes .theme -}}
 # bar-battery — waybar item for battery + power profile (JSON):
 # <battery icon, bolt when charging> <percent> <profile icon>.
 # Replaces waybar's built-in battery module, whose time estimate is wrong for
 # batteries reporting charge (µAh/µA) instead of energy (µWh/µW) — it showed
 # "2519 h" for ~6.5 h — and its power-profiles-daemon module, so both share
 # one item and one tooltip. Reads sysfs directly; works with either unit pair.
-bat=${1:-/sys/class/power_supply/BAT0}
+# First system battery (type Battery, not a mouse/headset: scope Device).
+first_battery() {
+    for d in /sys/class/power_supply/*; do
+        [ "$(cat "$d/type" 2>/dev/null)" = Battery ] || continue
+        [ "$(cat "$d/scope" 2>/dev/null)" = Device ] && continue
+        echo "$d"; return
+    done
+}
+bat=${1:-$(first_battery)}
 # Numeric sysfs read: missing, empty or non-numeric → 0 (keeps the JSON valid).
 read_n() { v=$(cat "$bat/$1" 2>/dev/null); case "$v" in ''|*[!0-9-]*) echo 0 ;; *) echo "$v" ;; esac; }
+
+# No battery (desktop, VM): show only the power profile, if any.
+if [ ! -r "$bat/status" ]; then
+    profile=$("$HOME/.local/bin/power-profile" get 2>/dev/null)
+    case "$profile" in
+        performance) icon=$(printf '\363\261\223\236') ;;
+        power-saver) icon=$(printf '\363\260\214\252') ;;
+        balanced)    icon=$(printf '\363\260\227\221') ;;
+        *)           icon="" ;;
+    esac
+    printf '{"text": "%s", "tooltip": "no battery · power profile: %s · click to cycle", "class": ["nobattery"]}\n' "$icon" "${profile:-unavailable}"
+    exit 0
+fi
 
 status=$(cat "$bat/status" 2>/dev/null || echo Unknown)
 cap=$(read_n capacity)
@@ -122,9 +144,9 @@ profile=$("$HOME/.local/bin/power-profile" get 2>/dev/null)
 # Material Design Nerd Font icons as UTF-8 byte escapes (raw private-use
 # glyphs don't survive editing): leaf U+F032A, scale-balance U+F05D1, rocket U+F14DE.
 case "$profile" in
-    performance) picon=$(printf '\363\261\223\236') pcolor="#ff2b6d" ;;
-    power-saver) picon=$(printf '\363\260\214\252') pcolor="#00ff9f" ;;
-    balanced)    picon=$(printf '\363\260\227\221') pcolor="#c8c8d0" ;;
+    performance) picon=$(printf '\363\261\223\236') pcolor="{{ $t.accent2 }}" ;;
+    power-saver) picon=$(printf '\363\260\214\252') pcolor="{{ $t.ok }}" ;;
+    balanced)    picon=$(printf '\363\260\227\221') pcolor="{{ $t.fg }}" ;;
     *)           picon="" pcolor="" ;;
 esac
 [ -n "$picon" ] && text="$text <span color='$pcolor'>$picon</span>"
