@@ -7,8 +7,11 @@
 //! layer-shell *background* layer, a few frames per second: no GPU, little power.
 //!
 //!   jerkwall [--fps N] [--points N] [--speed X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB]
+//!   jerkwall [same options] --frame W H FILE.png    render "now" to a PNG and exit
 //!
-//! --fps defaults to 4; with the power-saver profile (platform_profile
+//! The scene is a pure function of the wall clock (fixed seed), so --frame
+//! produces exactly what a running jerkwall shows at that moment; the lock
+//! screen uses this. --fps defaults to 4; with the power-saver profile (platform_profile
 //! low-power / quiet / cool) it drops to at most 1.
 //! Defaults match jerkarchy's palette: bg 0a0a0f, a 00f0ff (cyan), b ff2b6d (magenta).
 
@@ -22,6 +25,7 @@ const c = @cImport({
     @cInclude("unistd.h");
     @cInclude("time.h");
     @cInclude("fcntl.h");
+    @cInclude("stdio.h");
 });
 
 const gpa = std.heap.c_allocator;
@@ -51,54 +55,74 @@ fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
 }
 
 fn usage() noreturn {
-    std.debug.print("usage: jerkwall [--fps N] [--points N] [--speed X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB]\n", .{});
+    std.debug.print("usage: jerkwall [--fps N] [--points N] [--speed X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB] [--frame W H FILE.png]\n", .{});
     std.process.exit(2);
 }
 
 // ---------------------------------------------------------------- scene
 
-const Pt = struct { x: f64, y: f64, vx: f64 = 0, vy: f64 = 0, fixed: bool = false };
+const Pt = struct { x: f64 = 0, y: f64 = 0, x0: f64, y0: f64, vx: f64 = 0, vy: f64 = 0, fixed: bool = false };
 
 var points: std.ArrayList(Pt) = .empty;
 var scene_time: f64 = 0;
 
+/// Fixed seed + wall-clock time ⇒ every jerkwall process computes the same
+/// frame for the same moment. That's how the lock screen shows exactly what
+/// the wallpaper shows, without talking to the running instance.
+const seed: u64 = 0x6a65726b77616c6c; // "jerkwall"
+const epoch: f64 = 1.7e9; // keeps time values small for the trig below
+
 fn initScene() !void {
-    var prng = std.Random.DefaultPrng.init(@intFromFloat(@mod(now() * 1000.0, 2147483647.0)));
+    var prng = std.Random.DefaultPrng.init(seed);
     const rnd = prng.random();
     // Fixed points on the border so the mesh always covers the whole screen.
     const per_side = 7;
     for (0..per_side + 1) |i| {
         const t = @as(f64, @floatFromInt(i)) / per_side;
-        try points.append(gpa, .{ .x = t, .y = 0, .fixed = true });
-        try points.append(gpa, .{ .x = t, .y = 1, .fixed = true });
+        try points.append(gpa, .{ .x0 = t, .y0 = 0, .fixed = true });
+        try points.append(gpa, .{ .x0 = t, .y0 = 1, .fixed = true });
         if (i != 0 and i != per_side) {
-            try points.append(gpa, .{ .x = 0, .y = t, .fixed = true });
-            try points.append(gpa, .{ .x = 1, .y = t, .fixed = true });
+            try points.append(gpa, .{ .x0 = 0, .y0 = t, .fixed = true });
+            try points.append(gpa, .{ .x0 = 1, .y0 = t, .fixed = true });
         }
     }
     for (0..opt_points) |_| {
         const ang = rnd.float(f64) * std.math.tau;
         const spd = (0.004 + rnd.float(f64) * 0.008) * opt_speed; // screen widths per second
         try points.append(gpa, .{
-            .x = 0.02 + rnd.float(f64) * 0.96,
-            .y = 0.02 + rnd.float(f64) * 0.96,
+            .x0 = 0.02 + rnd.float(f64) * 0.96,
+            .y0 = 0.02 + rnd.float(f64) * 0.96,
             .vx = @cos(ang) * spd,
             .vy = @sin(ang) * spd,
         });
     }
 }
 
-fn stepScene(dt: f64) void {
-    scene_time += dt;
+/// Position along a straight path that bounces inside [0.01, 0.99].
+fn bounce(start: f64, vel: f64, t: f64) f64 {
+    const lo = 0.01;
+    const span = 0.98;
+    const m = @mod((start - lo + vel * t) / span, 2.0);
+    return lo + (if (m > 1) 2 - m else m) * span;
+}
+
+fn setTime(t: f64) void {
+    scene_time = t;
     for (points.items) |*p| {
-        if (p.fixed) continue;
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-        if (p.x < 0.01) { p.x = 0.01; p.vx = @abs(p.vx); }
-        if (p.x > 0.99) { p.x = 0.99; p.vx = -@abs(p.vx); }
-        if (p.y < 0.01) { p.y = 0.01; p.vy = @abs(p.vy); }
-        if (p.y > 0.99) { p.y = 0.99; p.vy = -@abs(p.vy); }
+        if (p.fixed) {
+            p.x = p.x0;
+            p.y = p.y0;
+        } else {
+            p.x = bounce(p.x0, p.vx, t);
+            p.y = bounce(p.y0, p.vy, t);
+        }
     }
+}
+
+fn wallTime() f64 {
+    var ts: c.struct_timespec = undefined;
+    _ = c.clock_gettime(c.CLOCK_REALTIME, &ts);
+    return @as(f64, @floatFromInt(ts.tv_sec)) - epoch + @as(f64, @floatFromInt(ts.tv_nsec)) / 1e9;
 }
 
 // ---------------------------------------------------------------- Delaunay (Bowyer–Watson)
@@ -309,6 +333,99 @@ fn ensureBuffer(b: *Buffer, w: usize, h: usize) !void {
     b.busy = false;
 }
 
+/// Draw the current scene into an XRGB8888 pixel buffer.
+fn drawFrame(px: []u32, w: usize, h: usize, verts: *std.ArrayList(V), tris: *std.ArrayList(Tri)) !void {
+    const fw: f64 = @floatFromInt(w);
+    const fh: f64 = @floatFromInt(h);
+    verts.clearRetainingCapacity();
+    for (points.items) |p| try verts.append(gpa, .{ .x = p.x * fw, .y = p.y * fh });
+    try triangulate(verts.items, tris);
+    @memset(px, pack(col_bg));
+    for (tris.items) |tr| {
+        const a = verts.items[tr.a];
+        const b = verts.items[tr.b];
+        const cc = verts.items[tr.c];
+        const u = (a.x + b.x + cc.x) / (3 * fw);
+        const v = (a.y + b.y + cc.y) / (3 * fh);
+        fillTri(px, w, h, a, b, cc, facet(u, v, scene_time));
+    }
+}
+
+/// Write XRGB8888 pixels as an 8-bit RGB PNG (zlib "stored" blocks: no
+/// compression, but tiny code and valid for every decoder).
+fn writePng(path: [*:0]const u8, px: []const u32, w: usize, h: usize) !void {
+    const f = c.fopen(path, "wb") orelse return error.OpenFailed;
+    defer _ = c.fclose(f);
+    const W = struct {
+        f: *c.FILE,
+        fn raw(self: @This(), bytes: []const u8) !void {
+            if (c.fwrite(bytes.ptr, 1, bytes.len, self.f) != bytes.len) return error.WriteFailed;
+        }
+        fn be32(self: @This(), v: u32) !void {
+            var b: [4]u8 = undefined;
+            std.mem.writeInt(u32, &b, v, .big);
+            try self.raw(&b);
+        }
+        fn chunk(self: @This(), kind: *const [4]u8, data: []const u8) !void {
+            try self.be32(@intCast(data.len));
+            try self.raw(kind);
+            try self.raw(data);
+            var crc = std.hash.Crc32.init();
+            crc.update(kind);
+            crc.update(data);
+            try self.be32(crc.final());
+        }
+    };
+    const out = W{ .f = f };
+    try out.raw("\x89PNG\r\n\x1a\n");
+    var ihdr: [13]u8 = undefined;
+    std.mem.writeInt(u32, ihdr[0..4], @intCast(w), .big);
+    std.mem.writeInt(u32, ihdr[4..8], @intCast(h), .big);
+    ihdr[8] = 8; // bit depth
+    ihdr[9] = 2; // colour type RGB
+    ihdr[10] = 0;
+    ihdr[11] = 0;
+    ihdr[12] = 0;
+    try out.chunk("IHDR", &ihdr);
+
+    // Raw scanlines: filter byte 0 + RGB.
+    const row_len = 1 + w * 3;
+    const raw = try gpa.alloc(u8, row_len * h);
+    defer gpa.free(raw);
+    for (0..h) |y| {
+        const row = raw[y * row_len ..][0..row_len];
+        row[0] = 0;
+        for (0..w) |x| {
+            const p = px[y * w + x];
+            row[1 + x * 3] = @truncate(p >> 16);
+            row[2 + x * 3] = @truncate(p >> 8);
+            row[3 + x * 3] = @truncate(p);
+        }
+    }
+    // zlib stream: header, stored deflate blocks (≤ 65535 bytes each), Adler-32.
+    const blocks = (raw.len + 65534) / 65535;
+    var z = try gpa.alloc(u8, 2 + raw.len + blocks * 5 + 4);
+    defer gpa.free(z);
+    z[0] = 0x78;
+    z[1] = 0x01;
+    var zi: usize = 2;
+    var off: usize = 0;
+    while (off < raw.len) {
+        const n = @min(65535, raw.len - off);
+        z[zi] = if (off + n == raw.len) 1 else 0; // BFINAL, BTYPE=00
+        std.mem.writeInt(u16, z[zi + 1 ..][0..2], @intCast(n), .little);
+        std.mem.writeInt(u16, z[zi + 3 ..][0..2], @intCast(~@as(u16, @intCast(n))), .little);
+        zi += 5;
+        @memcpy(z[zi .. zi + n], raw[off .. off + n]);
+        zi += n;
+        off += n;
+    }
+    std.mem.writeInt(u32, z[zi..][0..4], std.hash.Adler32.hash(raw), .big);
+    zi += 4;
+    try out.chunk("IDAT", z[0..zi]);
+    try out.chunk("IEND", "");
+}
+
 fn render(out: *Output) void {
     if (!out.configured or out.width == 0 or out.height == 0) return;
     const scale: usize = @intCast(@max(1, out.scale));
@@ -319,21 +436,7 @@ fn render(out: *Output) void {
     } else return; // both in use by the compositor; skip this frame
     ensureBuffer(buf, w, h) catch |err| fatal("buffer: {s}", .{@errorName(err)});
 
-    const fw: f64 = @floatFromInt(w);
-    const fh: f64 = @floatFromInt(h);
-    out.verts.clearRetainingCapacity();
-    for (points.items) |p| out.verts.append(gpa, .{ .x = p.x * fw, .y = p.y * fh }) catch return;
-    triangulate(out.verts.items, &out.tris) catch return;
-
-    @memset(buf.data, pack(col_bg));
-    for (out.tris.items) |tr| {
-        const a = out.verts.items[tr.a];
-        const b = out.verts.items[tr.b];
-        const cc = out.verts.items[tr.c];
-        const u = (a.x + b.x + cc.x) / (3 * fw);
-        const v = (a.y + b.y + cc.y) / (3 * fh);
-        fillTri(buf.data, w, h, a, b, cc, facet(u, v, scene_time));
-    }
+    drawFrame(buf.data, w, h, &out.verts, &out.tris) catch return;
 
     c.wl_surface_set_buffer_scale(out.surface, @intCast(scale));
     c.wl_surface_attach(out.surface, buf.wl, 0, 0);
@@ -461,12 +564,23 @@ fn parseHex(s: []const u8) Rgb {
 
 pub fn main(init: std.process.Init.Minimal) !void {
     const argv = init.args.vector;
+    var frame_w: usize = 0;
+    var frame_h: usize = 0;
+    var frame_file: ?[*:0]const u8 = null;
     var i: usize = 1;
     while (i < argv.len) : (i += 2) {
         if (i + 1 >= argv.len) usage();
         const k = std.mem.span(argv[i]);
         const v = std.mem.span(argv[i + 1]);
-        if (std.mem.eql(u8, k, "--fps")) {
+        if (std.mem.eql(u8, k, "--frame")) {
+            // --frame W H FILE: render the frame for "now" to a PNG and exit.
+            if (i + 3 >= argv.len) usage();
+            frame_w = std.fmt.parseInt(usize, v, 10) catch usage();
+            frame_h = std.fmt.parseInt(usize, std.mem.span(argv[i + 2]), 10) catch usage();
+            frame_file = argv[i + 3];
+            if (frame_w == 0 or frame_h == 0 or frame_w > 16384 or frame_h > 16384) usage();
+            i += 2;
+        } else if (std.mem.eql(u8, k, "--fps")) {
             opt_fps = std.math.clamp(std.fmt.parseFloat(f64, v) catch usage(), 0.1, 30);
         } else if (std.mem.eql(u8, k, "--points")) {
             opt_points = std.math.clamp(std.fmt.parseInt(usize, v, 10) catch usage(), 3, 2000);
@@ -482,6 +596,17 @@ pub fn main(init: std.process.Init.Minimal) !void {
     }
 
     try initScene();
+    setTime(wallTime());
+
+    if (frame_file) |path| {
+        const px = try gpa.alloc(u32, frame_w * frame_h);
+        defer gpa.free(px);
+        var verts: std.ArrayList(V) = .empty;
+        var tris: std.ArrayList(Tri) = .empty;
+        try drawFrame(px, frame_w, frame_h, &verts, &tris);
+        writePng(path, px, frame_w, frame_h) catch |err| fatal("writing {s}: {s}", .{ path, @errorName(err) });
+        return;
+    }
 
     const display = c.wl_display_connect(null) orelse fatal("cannot connect to Wayland display", .{});
     const registry = c.wl_display_get_registry(display);
@@ -517,7 +642,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
             next_profile_check = t + 5;
         }
         if (t >= next) {
-            stepScene(t - last);
+            setTime(wallTime());
             last = t;
             next = t + frame;
             for (outputs.items) |out| render(out);
