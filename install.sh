@@ -35,8 +35,8 @@ mkdir -p "$HOME/.config/chezmoi"
 printf 'sourceDir = "%s"\n' "$SRC" > "$HOME/.config/chezmoi/chezmoi.toml"
 chezmoi apply
 
-say "building sway-binds (Zig)"
-ZIG="$(command -v zig)" "$SRC/src/sway-binds/build.sh"
+say "building Zig helpers (sway-binds, jerkwall)"
+for tool in sway-binds jerkwall; do ZIG=/usr/bin/zig "$SRC/src/$tool/build.sh"; done
 
 say "done. log out, pick 'Sway' at the login screen, press Super+H."
 say "funding received: \$0. features missing: surprisingly few."

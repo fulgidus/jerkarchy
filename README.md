@@ -43,6 +43,7 @@ themes, a dev stack and a nice installer. jerkarchy gives you:
 | Keybinding cheat sheet | static | **generated from the config** (`Super+H`) |
 | Workspaces that appear when you walk into them | yes | yes |
 | Installer | ISO, 5 questions | `curl \| bash`, 0 questions |
+| Wallpaper | a folder of images | a **live** Delaunay mesh that drifts and slowly shifts colour, written in Zig, ~3% of one core, 1 fps on power-saver |
 | Themes | 20+ | 1. It's cyan. |
 | AI agents | built in | the author vibe-coded the whole thing, so: *built out* |
 | Funding | ~$15.5M pledged | $0 |
@@ -91,6 +92,7 @@ home/                 chezmoi source (dotfiles), applied to ~
   .local/bin          wifi-menu, bt-menu, bar-battery, power-profile,
                       sway-ws, session-{lock,logout,menu}, screenshot, volume…
 src/sway-binds        Zig: turns the sway config into the Super+H cheat sheet
+src/jerkwall          Zig: the live wallpaper (layer-shell, CPU-drawn, no GPU)
 install.sh            the entire "installer"
 ```
 

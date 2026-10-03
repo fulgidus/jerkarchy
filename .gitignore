@@ -1,5 +1,7 @@
-# build outputs
-src/*/sway-binds
-src/*/zig-out
-src/*/.zig-cache
 *.bak*
+# build outputs
+src/*/gen
+src/*/jerkwall
+src/*/sway-binds
+src/*/.zig-cache
+src/*/zig-out

@@ -54,6 +54,7 @@ works if the thing actually works — so quality rules below are strict.
 .chezmoiroot      → "home": chezmoi's source lives in home/
 home/             dotfiles (chezmoi naming: dot_, executable_, private_, empty_, *.tmpl)
 src/<tool>/       source of compiled helpers (Zig) + build.sh; binaries are never committed
+                  (sway-binds: binding list; jerkwall: live Delaunay wallpaper)
 install.sh        the whole installer; keep it short and readable
 SNAPSHOT          Arch Linux Archive date (YYYY-MM-DD) that builds install from
 ci/check.sh       all automated checks (local + GitHub Actions)
