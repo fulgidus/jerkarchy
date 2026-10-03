@@ -1,9 +1,6 @@
-# swaylock — wallpaper + always-visible ring so a locked screen never
-# looks like a dead one. Palette matches river/waybar.
-{{- $wall := joinPath .chezmoi.homeDir ".local/share/backgrounds/wallpaper.png" }}
-{{- if stat $wall }}
-image={{ $wall }}
-{{- end }}
+# swaylock — ring always visible so a locked screen never looks like a dead
+# one. The background image is passed by session-lock (the live wallpaper's
+# current frame, per output); color= is the fallback.
 scaling=fill
 color=0a0a0f
 indicator-idle-visible
