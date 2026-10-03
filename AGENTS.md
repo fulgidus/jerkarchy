@@ -37,6 +37,12 @@ works if the thing actually works — so quality rules below are strict.
   `feature/*`, push it, and merge into `develop` when it's finished and
   verified (§4). Anything that reaches `main` (PRs, tags) is
   **outward-facing**: only with the user's go-ahead.
+- **Releasing:** on `release/X.Y.Z`, set `VERSION` to `X.Y.Z` and add a
+  `## vX.Y.Z` section to `CHANGELOG.md`. When `main` reaches GitHub, CI runs
+  the checks, then publishes the GitHub release (tag + binaries it built,
+  notes from the changelog) if it doesn't exist yet, and deploys `site/` to
+  GitHub Pages. The push mirror only carries `main`, so tags on GitHub come
+  from that release step.
 - Versions: `v0.0.0` is the first tag. Bump semver per release: patch for
   fixes, minor for new features or binds, major for breaking changes to the
   layout or installer.
@@ -59,6 +65,8 @@ install.sh        the whole installer; keep it short and readable
 SNAPSHOT          Arch Linux Archive date (YYYY-MM-DD) that builds install from
 ci/check.sh       all automated checks (local + GitHub Actions)
 ci/vm-test.sh     end-to-end install test in a QEMU VM (before every release)
+site/             the GitHub Pages site (deployed from main by CI)
+VERSION           the version main releases; CHANGELOG.md has its notes
 .github/          CI workflow (runs on main only; GitHub sees nothing else)
 README.md         user-facing, satirical, sourced (see §9)
 ROADMAP.md        what gets built, in which release, with which tools
@@ -101,7 +109,11 @@ live; they change.
   (Intel), Ghostty, CachyOS (Framework sponsorship), mise (Omacom Foundation).
   Clean — sway/wlroots, waybar, fuzzel, mako, nwg-drawer, autotiling, wezterm,
   starship, swaylock, blueman, pwvucontrol (not in Arch repos), wiremix, shellcheck,
-  COSMIC. Accepted as test-only tooling despite a hit: QEMU (Red Hat → IBM).
+  COSMIC, thunar (XFCE). Accepted as test-only tooling despite a hit: QEMU
+  (Red Hat → IBM), github-cli (GitHub → Microsoft; CI release step only).
+  Firefox (and so LibreWolf) is a lineage hit (Brendan Eich, Mozilla
+  co-founder, is on the weird-guys list): the user's choice, never installed
+  by jerkarchy.
 - **Check that a program exists before wiring it in** (`command -v`). Do not
   copy app names from old configs (this repo already shipped dead binds to
   `codium`, `blueman`, `pavucontrol`). If something isn't installed, either
@@ -151,10 +163,11 @@ live; they change.
   Output consumed by waybar must stay valid JSON in every case.
 - Say plainly what you could *not* test (clicks, hover tooltips, real
   pairing/connecting, multi-monitor) instead of implying it was tested.
-- **Never let tests reach the live session.** Headless test clients share
-  the user's D-Bus session: their errors pop up as real notifications
-  (headless wezterms once left 19). Stop test clients before killing the test
-  compositor, and dismiss anything they posted. Build scripts that install
+- **Never let tests reach the live session.** Test clients on the user's
+  D-Bus session posted real notifications (19 wezterm errors, 5 from
+  `ci/check.sh`) and crashed the live waybar (GApplication uniqueness).
+  `ci/headless-sway.sh` gives each test sway a private bus and `ci/check.sh`
+  points at a dead one; keep it that way for anything new. Build scripts that install
   into `~/.local/bin` (`src/*/build.sh`) replace the live binary: build
   elsewhere (`zig build-exe … -femit-bin=$TMP/…`) for experiments.
 - **The user can't see your tool output.** Screenshots and renders you view
