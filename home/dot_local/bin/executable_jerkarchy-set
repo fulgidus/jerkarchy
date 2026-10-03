@@ -6,7 +6,7 @@
 #
 #   jerkarchy-set                 list settings and current values
 #   jerkarchy-set get KEY         print one value
-#   jerkarchy-set themes          list theme names (one per line, name TAB title)
+#   jerkarchy-set themes          list themes, one per line: name TAB title TAB group
 #   jerkarchy-set KEY VALUE       set, apply, reload
 #
 # Keys: theme, wall_contrast (0.5–4), wall_fps (1–60), wall_speed (0.1–5),
@@ -25,7 +25,7 @@ get() {
 }
 
 themes() {
-    chezmoi execute-template '{{ range $k, $v := .themes }}{{ $k }}{{ "\t" }}{{ $v.title }}{{ if $v.light }} (light){{ end }}{{ "\n" }}{{ end }}'
+    chezmoi execute-template '{{ range $k, $v := .themes }}{{ $k }}{{ "\t" }}{{ $v.title }}{{ if and $v.light (not (hasKey $v "group")) }} (light){{ end }}{{ "\t" }}{{ if hasKey $v "group" }}{{ $v.group }}{{ end }}{{ "\n" }}{{ end }}'
 }
 
 # Write KEY = VALUE (already formatted for TOML) into [data]: replace the

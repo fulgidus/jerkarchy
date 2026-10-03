@@ -96,6 +96,8 @@ for name, t in d["themes"].items():
         if not hexc.match(str(t.get(r, ""))): bad.append(f"{name}.{r} = {t.get(r)!r}")
     if len(t.get("ansi", [])) != 16 or not all(hexc.match(c) for c in t["ansi"]): bad.append(f"{name}.ansi")
     if not isinstance(t.get("light"), bool) or not t.get("title"): bad.append(f"{name}: title/light")
+    if "wall" in t and not (2 <= len(t["wall"]) <= 12 and all(hexc.match(c) for c in t["wall"])): bad.append(f"{name}.wall (2-12 hex colours)")
+    if t.get("group", "flags") not in ("flags", "mono"): bad.append(f"{name}.group (flags|mono, or none)")
 if d.get("theme") not in d["themes"]: bad.append(f"default theme {d.get('theme')!r} missing")
 if bad: sys.exit("\n".join(bad))
 print(" ".join(sorted(d["themes"])), file=open(sys.argv[1] + ".names", "w"))
@@ -227,6 +229,9 @@ elif need zig && need wayland-scanner; then
             -target x86_64-linux-gnu -lc -lwayland-client -lwayland-egl -lEGL -lGLESv2 -O ReleaseFast -femit-bin="$TMP/jerkwall") >"$TMP/zig" 2>&1; then
         ok "build"
         if "$TMP/jerkwall" --fps x >/dev/null 2>&1; then bad "rejects bad --fps"; else ok "rejects bad --fps"; fi
+        if "$TMP/jerkwall" --stops ff0000 >/dev/null 2>&1; then bad "rejects a one-colour --stops"; else ok "rejects a one-colour --stops"; fi
+        if HOME="$TMP" "$TMP/jerkwall" --stops e40303,ff8c00,ffed00,008026,004dff,750787 --frame 64 36 "$TMP/stops.png" >/dev/null 2>&1 &&
+                [ -s "$TMP/stops.png" ]; then ok "--stops renders a frame"; else bad "--stops renders a frame"; fi
     else
         bad "build"; sed 's/^/        /' "$TMP/zig"
     fi

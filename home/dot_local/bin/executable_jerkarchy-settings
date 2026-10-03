@@ -36,20 +36,33 @@ get() { "$bin/jerkarchy-set" get "$1"; }
 mark() { [ "$1" = "$2" ] && printf '%s' "$I_CHECK" || printf ' '; }   # mark CURRENT CANDIDATE
 back_row() { printf '%s  back\tback\n' "$I_BACK"; }
 
+# theme_menu [GROUP] — themes without a group, plus one row per group
+# (flags, mono) that opens that group's list. Stays open after a pick so
+# themes can be tried one after another.
 theme_menu() {
-    # Stays open after a pick so themes can be tried one after another.
+    group=${1:-}
     while :; do
         cur=$(get theme)
-        rows=$("$bin/jerkarchy-set" themes | while IFS="$TAB" read -r name title; do
-                   printf '%s %s\t%s\n' "$(mark "$cur" "$name")" "$title" "$name"
+        list=$("$bin/jerkarchy-set" themes)
+        cur_group=$(printf '%s\n' "$list" | awk -F"$TAB" -v c="$cur" '$1 == c { print $3 }')
+        rows=$(printf '%s\n' "$list" | while IFS="$TAB" read -r name title g; do
+                   [ "$g" = "$group" ] && printf '%s %s\t%s\n' "$(mark "$cur" "$name")" "$title" "$name"
                done)
-        idx=$(printf '%s\n' "$rows" | awk -F"$TAB" -v c="$cur" '$2 == c { print NR - 1; exit }')
+        if [ -z "$group" ]; then
+            for g in flags mono; do
+                case $g in flags) label="flags ›" ;; mono) label="monochrome ›" ;; esac
+                rows="$rows
+$(mark "$cur_group" "$g") $label${TAB}group:$g"
+            done
+        fi
+        idx=$(printf '%s\n' "$rows" | awk -F"$TAB" -v c="$cur" -v g="group:$cur_group" '$2 == c || $2 == g { print NR - 1; exit }')
         choice=$({ printf '%s\n' "$rows"; back_row; } |
-                 menu --prompt 'theme › ' --lines 20 --select-index "${idx:-0}")
+                 menu --prompt "theme${group:+ $group} › " --lines 20 --select-index "${idx:-0}")
         case "$choice" in
-            "")   exit 0 ;;
-            back) return ;;
-            *)    "$bin/jerkarchy-set" theme "$choice" >/dev/null ;;
+            "")      exit 0 ;;
+            back)    return ;;
+            group:*) theme_menu "${choice#group:}"; group="" ;;
+            *)       "$bin/jerkarchy-set" theme "$choice" >/dev/null ;;
         esac
     done
 }
