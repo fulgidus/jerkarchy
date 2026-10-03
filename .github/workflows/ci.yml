@@ -1,0 +1,40 @@
+# CI: run ci/check.sh in an Arch container whose package mirror is pinned to
+# the date in SNAPSHOT (Arch Linux Archive), so every run sees the same
+# package versions. GitHub only receives main (push mirror), so this runs on
+# releases; ci/check.sh is also run locally before merging into develop.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    container: archlinux:base
+    steps:
+      - name: Bootstrap git (needed for full history checks)
+        run: pacman -Sy --noconfirm --needed git
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Pin pacman to the SNAPSHOT date
+        run: |
+          snap=$(tr - / < SNAPSHOT)
+          echo "Server = https://archive.archlinux.org/repos/${snap}/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist
+          cat /etc/pacman.d/mirrorlist
+          pacman -Syyuu --noconfirm
+
+      - name: Install check dependencies
+        run: pacman -S --noconfirm --needed bash python sway fuzzel chezmoi zig shellcheck
+
+      - name: Run ci/check.sh
+        env:
+          XDG_RUNTIME_DIR: /tmp/xdg
+        run: |
+          mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          ci/check.sh

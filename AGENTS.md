@@ -55,6 +55,9 @@ works if the thing actually works — so quality rules below are strict.
 home/             dotfiles (chezmoi naming: dot_, executable_, private_, empty_, *.tmpl)
 src/<tool>/       source of compiled helpers (Zig) + build.sh; binaries are never committed
 install.sh        the whole installer; keep it short and readable
+SNAPSHOT          Arch Linux Archive date (YYYY-MM-DD) that builds install from
+ci/check.sh       all automated checks (local + GitHub Actions)
+.github/          CI workflow (runs on main only; GitHub sees nothing else)
 README.md         user-facing, satirical, sourced (see §9)
 ROADMAP.md        what gets built, in which release, with which tools
 AGENTS.md         this file (CLAUDE.md → symlink)
@@ -106,6 +109,16 @@ live; they change.
 ## 4. Verify before you claim
 
 "It should work" is not done. Done means you saw it work.
+
+- **`ci/check.sh` must pass before any merge into `develop`.** It renders the
+  dotfiles with chezmoi into a temp home and runs every automated check
+  (shell syntax, shellcheck, `sway -C`, waybar JSON, fuzzel configs,
+  `bar-battery` edge cases, hygiene, the Zig build). GitHub Actions runs the
+  same script on `main`, inside an Arch container pinned to `SNAPSHOT`. When
+  you add a check, prove it can fail (break the thing once in a throwaway
+  worktree).
+- **`SNAPSHOT`** holds the Arch Linux Archive date that CI (and later the VM
+  test and installer) install from. Bump it deliberately, never by accident.
 
 - **sway config:** `sway -C -c home/dot_config/sway/config` must exit 0 with
   no warnings. Then `swaymsg reload` on the live session if appropriate.
