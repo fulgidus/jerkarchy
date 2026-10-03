@@ -36,8 +36,10 @@ seat * xcursor_theme sweet-cursors 24
 # ------------------------------------------------------------------
 # Look
 # ------------------------------------------------------------------
-# No `output * bg`: jerkwall (below) is the wallpaper; swaybg would compete
-# with it on the background layer and can end up on top after a reload.
+# No swaybg at all: jerkwall (Autostart) is the wallpaper. swaybg would
+# compete with it on the background layer and can end up on top after a
+# reload; sway spawns it even without an `output * bg` line unless disabled.
+swaybg_command -
 font pango:JetBrainsMono Nerd Font 10
 default_border pixel 2
 default_floating_border pixel 2
