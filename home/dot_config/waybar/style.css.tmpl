@@ -1,0 +1,50 @@
+{{- $t := index .themes .theme -}}
+* {
+  font-family: "JetBrains Mono NF", monospace;
+  font-size: 13px;
+  border: none;
+  border-radius: 0;
+  min-height: 0;
+}
+window#waybar {
+  background: {{ $t.bg }};
+  color: {{ $t.fg }};
+  border-bottom: 1px solid {{ $t.border }};
+}
+#tags button, #workspaces button {
+  padding: 0 6px;
+  color: {{ $t.fg_mute }};
+  background: transparent;
+}
+#tags button.occupied { color: {{ $t.fg }}; }
+#workspaces button { color: {{ $t.fg }}; }
+#tags button.focused, #workspaces button.focused { color: {{ $t.bg }}; background: {{ $t.accent }}; }
+#tags button.urgent, #workspaces button.urgent { color: {{ $t.bg }}; background: {{ $t.accent2 }}; }
+#scratchpad { color: {{ $t.accent2 }}; padding: 0 8px; }
+#mode   { color: {{ $t.accent2 }}; padding: 0 8px; }
+#window { color: {{ $t.fg_dim }}; padding: 0 10px; }
+
+#tray, #idle_inhibitor, #pulseaudio, #backlight, #network, #battery, #custom-battery, #clock, #custom-settings {
+  padding: 0 10px;
+  border-left: 1px solid {{ $t.border }};
+}
+#clock { color: {{ $t.accent }}; }
+#custom-settings { color: {{ $t.fg_dim }}; }
+#custom-settings:hover { color: {{ $t.accent }}; }
+#pulseaudio.muted, #network.disconnected, #bluetooth.off, #bluetooth.disabled { color: {{ $t.fg_mute }}; }
+#bluetooth { padding: 0 10px; border-left: 1px solid {{ $t.border }}; }
+#bluetooth.connected { color: {{ $t.accent }}; }
+
+#mpris { color: {{ $t.fg_dim }}; padding: 0 10px; }
+#mpris.playing { color: {{ $t.accent }}; }
+#idle_inhibitor { color: {{ $t.fg_mute }}; }
+#idle_inhibitor.activated { color: {{ $t.bg }}; background: {{ $t.warn }}; }
+#idle_inhibitor { font-size: 15px; }
+
+/* battery (bar-battery): red discharging, green charging, cyan on AC not charging */
+#custom-battery.discharging { color: {{ $t.accent2 }}; }
+#custom-battery.charging    { color: {{ $t.ok }}; }
+#custom-battery.full,
+#custom-battery.plugged     { color: {{ $t.accent }}; }
+#custom-battery.warning     { color: {{ $t.bg }}; background: {{ $t.accent2 }}; }
+#custom-battery.critical    { font-weight: bold; }

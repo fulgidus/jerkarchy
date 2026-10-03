@@ -1,4 +1,5 @@
 #!/bin/sh
+{{ $t := index .themes .theme -}}
 # bar-battery — waybar item for battery + power profile (JSON):
 # <battery icon, bolt when charging> <percent> <profile icon>.
 # Replaces waybar's built-in battery module, whose time estimate is wrong for
@@ -135,9 +136,9 @@ profile=$("$HOME/.local/bin/power-profile" get 2>/dev/null)
 # Material Design Nerd Font icons as UTF-8 byte escapes (raw private-use
 # glyphs don't survive editing): leaf U+F032A, scale-balance U+F05D1, rocket U+F14DE.
 case "$profile" in
-    performance) picon=$(printf '\363\261\223\236') pcolor="#ff2b6d" ;;
-    power-saver) picon=$(printf '\363\260\214\252') pcolor="#00ff9f" ;;
-    balanced)    picon=$(printf '\363\260\227\221') pcolor="#c8c8d0" ;;
+    performance) picon=$(printf '\363\261\223\236') pcolor="{{ $t.accent2 }}" ;;
+    power-saver) picon=$(printf '\363\260\214\252') pcolor="{{ $t.ok }}" ;;
+    balanced)    picon=$(printf '\363\260\227\221') pcolor="{{ $t.fg }}" ;;
     *)           picon="" pcolor="" ;;
 esac
 [ -n "$picon" ] && text="$text <span color='$pcolor'>$picon</span>"

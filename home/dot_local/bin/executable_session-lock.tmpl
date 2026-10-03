@@ -1,4 +1,5 @@
 #!/bin/sh
+{{ $t := index .themes .theme -}}
 # Lock the session with swaylock (ring always visible; look in
 # ~/.config/swaylock/config). The background is the wallpaper's current frame:
 # jerkwall's scene is a function of the clock, so `jerkwall --frame` renders
@@ -9,7 +10,7 @@
 
 if ! command -v swaylock >/dev/null; then
     exec waylock -fork-on-lock -ignore-empty-password \
-        -init-color 0x1a2a40 -input-color 0x00f0ff -fail-color 0xff2b6d
+        -init-color 0x1a2a40 -input-color 0x{{ $t.accent | trimPrefix "#" }} -fail-color 0x{{ $t.accent2 | trimPrefix "#" }}
 fi
 
 dir="${XDG_RUNTIME_DIR:-/tmp}/jerkwall-lock"

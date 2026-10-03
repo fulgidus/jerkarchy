@@ -1,0 +1,7 @@
+# Default settings. Your chezmoi.toml [data] section overrides these;
+# change them with jerkarchy-set or jerkarchy-settings.
+theme = "jerkarchy"
+wall_contrast = 1.6
+wall_fps = 30
+wall_speed = 1.0
+wall_points = 140

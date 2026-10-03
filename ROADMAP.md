@@ -6,8 +6,8 @@ Every release must pass the VM install test, not just "works on my laptop".
 
 | Release | Scope | Tools |
 |---|---|---|
-| **v0.1.0 — it installs** | CI on every push (`sway -C`, `bash -n`/shellcheck, waybar JSON, Zig build); VM install test (fresh Arch → `install.sh` → working desktop); **snapshot pinning** (`SNAPSHOT` date → Arch Linux Archive mirror for CI, VM test and installs); fix known gaps: launcher (`fuzzel.ini`) still has caelestia colours, no default wallpaper (generate one, no licence questions), machine-specific bits into templates | GitHub Actions, QEMU + archiso, shellcheck ⚠, Arch Linux Archive |
-| **v0.2.0 — themes** | one palette → every config; `jerkarchy-theme <name>`; 3 themes incl. a parody of an Omarchy one | chezmoi data + `.tmpl` (nothing new) |
+| **v0.1.0 — it installs** | CI on every push (`sway -C`, `bash -n`/shellcheck, waybar JSON, Zig build); VM install test (fresh Arch → `install.sh` → working desktop); **snapshot pinning** (`SNAPSHOT` date → Arch Linux Archive mirror for CI, VM test and installs); fix known gaps: ~~launcher (`fuzzel.ini`) still has caelestia colours~~ (themed), ~~no default wallpaper~~ (jerkwall), machine-specific bits into templates | GitHub Actions, QEMU + archiso, shellcheck ⚠, Arch Linux Archive |
+| **v0.2.0 — themes** | ~~one palette → every config~~; ~~settings menu + `jerkarchy-set`~~; ~~19 upstream palettes~~; still to do: a parody of an Omarchy theme | chezmoi data + `.tmpl` (nothing new) |
 | **v0.3.0 — screensaver** | full-screen terminal effect before the idle lock; any key → lock | terminaltexteffects ⚠ (what Omarchy uses) or cmatrix/cbonsai ⚠ |
 | **v0.4.0 — omakase profiles** | `install.sh --with docker,office,gaming,dev` | Docker ⚠, LibreOffice ⚠, Steam (Valve, clean), Neovim/VSCodium ⚠ |
 | **v0.5.0 — login screen** | themed login, VM-tested before it touches a real machine | greetd + tuigreet ⚠, or an SDDM theme |

@@ -377,7 +377,6 @@ var gl_vbo: c.GLuint = 0;
 var gl_pos: c.GLint = 0;
 var gl_col: c.GLint = 0;
 var use_gpu = false;
-var software_gl = false; // EGL works but renders on the CPU (llvmpipe)
 
 const vs_src =
     \\attribute vec2 pos;
@@ -430,6 +429,22 @@ fn initGpu(display: *c.wl_display) void {
     const ctx_attr = [_]c.EGLint{ c.EGL_CONTEXT_CLIENT_VERSION, 2, c.EGL_NONE };
     egl_context = c.eglCreateContext(egl_display, egl_config, c.EGL_NO_CONTEXT, &ctx_attr);
     if (egl_context == c.EGL_NO_CONTEXT) return;
+    // Mesa's software rasterizers (llvmpipe/softpipe) "work" without a GPU but
+    // run on the CPU, and their Wayland path has crashed on compositors that
+    // render with pixman: use the shm CPU renderer instead. Asked through a
+    // surfaceless context, before any surface exists.
+    if (c.eglMakeCurrent(egl_display, c.EGL_NO_SURFACE, c.EGL_NO_SURFACE, egl_context) == c.EGL_TRUE) {
+        if (c.glGetString(c.GL_RENDERER)) |r| {
+            const name = std.mem.span(@as([*:0]const u8, @ptrCast(r)));
+            if (std.mem.indexOf(u8, name, "llvmpipe") != null or std.mem.indexOf(u8, name, "softpipe") != null) {
+                std.debug.print("jerkwall: GL renderer is {s} (software): using the CPU renderer\n", .{name});
+                _ = c.eglMakeCurrent(egl_display, c.EGL_NO_SURFACE, c.EGL_NO_SURFACE, c.EGL_NO_CONTEXT);
+                _ = c.eglTerminate(egl_display);
+                return;
+            }
+        }
+        _ = c.eglMakeCurrent(egl_display, c.EGL_NO_SURFACE, c.EGL_NO_SURFACE, c.EGL_NO_CONTEXT);
+    }
     use_gpu = true;
 }
 
@@ -462,15 +477,6 @@ fn buildProgram() void {
     gl_col = c.glGetAttribLocation(gl_prog, "col");
     c.glGenBuffers(1, &gl_vbo);
     gl_ready = true;
-    // Mesa's software rasterizers (llvmpipe/softpipe) "work" without a GPU but
-    // run on the CPU: treat them like no GPU for frame pacing.
-    if (c.glGetString(c.GL_RENDERER)) |r| {
-        const name = std.mem.span(@as([*:0]const u8, @ptrCast(r)));
-        if (std.mem.indexOf(u8, name, "llvmpipe") != null or std.mem.indexOf(u8, name, "softpipe") != null) {
-            software_gl = true;
-            std.debug.print("jerkwall: GL renderer is {s} (software): capping at CPU-renderer frame rates\n", .{name});
-        }
-    }
 }
 
 fn renderGpu(out: *Output, w: usize, h: usize) void {
@@ -776,7 +782,7 @@ fn lowPower() bool {
 /// Frame rate actually used: --fps, capped at 6 on the CPU renderer (~9 ms a
 /// frame at 1080p) and at 10 / 2 (GPU / CPU) under the power-saver profile.
 fn effectiveFps() f64 {
-    const hw = use_gpu and !software_gl;
+    const hw = use_gpu;
     var f = opt_fps;
     if (!hw) f = @min(f, 6);
     if (lowPower()) f = @min(f, @as(f64, if (hw) 10.0 else 2.0));
@@ -797,8 +803,36 @@ fn parseHex(s: []const u8) Rgb {
     return hex(std.fmt.parseInt(u32, t, 16) catch usage());
 }
 
+/// Options from $XDG_CONFIG_HOME/jerkwall/config (or ~/.config/jerkwall/config):
+/// whitespace-separated, `#` starts a comment. They come before the command
+/// line, so explicit flags win. jerkarchy writes this file from the theme, so
+/// the wallpaper and `--frame` (the lock screen) always agree on colours.
+fn configArgs(list: *std.ArrayList([*:0]const u8)) !void {
+    var path_buf: [4096]u8 = undefined;
+    const path = if (std.c.getenv("XDG_CONFIG_HOME")) |x|
+        std.fmt.bufPrintZ(&path_buf, "{s}/jerkwall/config", .{std.mem.span(x)}) catch return
+    else if (std.c.getenv("HOME")) |hm|
+        std.fmt.bufPrintZ(&path_buf, "{s}/.config/jerkwall/config", .{std.mem.span(hm)}) catch return
+    else
+        return;
+    const f = c.fopen(path.ptr, "rb") orelse return;
+    defer _ = c.fclose(f);
+    var buf: [8192]u8 = undefined;
+    const n = c.fread(&buf, 1, buf.len, f);
+    var lines = std.mem.splitScalar(u8, buf[0..n], '\n');
+    while (lines.next()) |line| {
+        const code = if (std.mem.indexOfScalar(u8, line, '#')) |h| line[0..h] else line;
+        var toks = std.mem.tokenizeAny(u8, code, " \t\r");
+        while (toks.next()) |tok| try list.append(gpa, try gpa.dupeZ(u8, tok));
+    }
+}
+
 pub fn main(init: std.process.Init.Minimal) !void {
-    const argv = init.args.vector;
+    var arglist: std.ArrayList([*:0]const u8) = .empty;
+    try arglist.append(gpa, "jerkwall");
+    try configArgs(&arglist);
+    for (init.args.vector[1..]) |arg| try arglist.append(gpa, arg);
+    const argv = arglist.items;
     var frame_w: usize = 0;
     var frame_h: usize = 0;
     var frame_file: ?[*:0]const u8 = null;
