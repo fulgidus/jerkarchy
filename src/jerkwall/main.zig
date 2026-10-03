@@ -10,7 +10,7 @@
 //!
 //!   jerkwall [--fps N] [--points N] [--speed X] [--contrast X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB]
 //!   jerkwall [same options] [--at S] --frame W H FILE.png   render "now" (+S seconds) to a PNG and exit
-//!   jerkwall [same options] [--at S] --frame W H x --frames N DIR   N eased 30 fps frames (tests)
+//!   jerkwall [same options] [--at S] --frame W H x --frames N DIR   N consecutive 30 fps frames (tests)
 //!
 //! The scene is a pure function of the wall clock (fixed seed), so --frame
 //! produces exactly what a running jerkwall shows at that moment; the lock
@@ -77,12 +77,6 @@ const Pt = struct {
     fixed: bool = false,
     leg: f64 = 1, // seconds per movement leg (waypoint to waypoint)
     leg_phase: f64 = 0,
-    tone: f64 = 1, // seconds per colour-variation step
-    tone_phase: f64 = 0,
-    // Per-frame derived values (setTime): colour variation and field samples.
-    jitter: f64 = 0,
-    accent: f64 = 0,
-    hue: f64 = 0,
 };
 
 var points: std.ArrayList(Pt) = .empty;
@@ -155,8 +149,6 @@ fn initScene() !void {
             .home_y = cy,
             .leg = (7 + 7 * rnd01(i, -1, 3)) * slow,
             .leg_phase = 100 * rnd01(i, -1, 4),
-            .tone = (5 + 6 * rnd01(i, -1, 5)) * slow,
-            .tone_phase = 100 * rnd01(i, -1, 6),
         });
     }
 }
@@ -175,15 +167,6 @@ fn setTime(t: f64) void {
             p.x = reflectInto(p.home_x + dx, 0.01, 0.99);
             p.y = reflectInto(p.home_y + dy, 0.01, 0.99);
         }
-        // Colour: per-point variation easing between targets, plus slow
-        // fields sampled at the point (continuous in position and time).
-        p.jitter = eased(i, 20, t, if (p.fixed) 9 else p.tone, p.tone_phase) - 0.5;
-        const u = p.x;
-        const v = p.y;
-        const n1 = 0.5 + 0.5 * @sin(u * 3.1 + t * 0.07) * @cos(v * 2.3 - t * 0.05);
-        const n2 = 0.5 + 0.5 * @sin((u + v) * 4.0 - t * 0.11);
-        p.accent = 0.06 + 0.39 * n1 * n2 + 0.10 * p.jitter;
-        p.hue = 0.5 + 0.5 * @sin(t * 0.013 + u * 1.7 - v * 1.1);
     }
 }
 
@@ -294,14 +277,25 @@ fn pack(col: Rgb) u32 {
     return 0xff000000 | (r << 16) | (g << 8) | b;
 }
 
-/// Colour of a triangle: the average of its three points' eased values, so
-/// when the mesh re-forms, colours shift gently instead of jumping.
-fn facetRgb(a: u32, b: u32, cc: u32) Rgb {
-    const pa = points.items[a];
-    const pb = points.items[b];
-    const pc = points.items[cc];
-    const k = std.math.clamp((pa.accent + pb.accent + pc.accent) / 3 * opt_contrast, 0, 0.9);
-    const h = (pa.hue + pb.hue + pc.hue) / 3;
+/// Colour of a triangle, sampled from smooth fields at its **circumcentre**.
+/// When moving points make a Delaunay edge flip, the four points involved are
+/// co-circular at that instant, so the old and the new triangles all share one
+/// circumcentre — and therefore one colour. Facets transform into each other
+/// continuously: no jump, no dissolve.
+fn facetRgb(tr: Tri, fw: f64, fh: f64) Rgb {
+    const t = scene_time;
+    const u = tr.cx / fw;
+    const v = tr.cy / fh;
+    // Broad, slow fields: where the accent glows.
+    const n1 = 0.5 + 0.5 * @sin(u * 3.1 + t * 0.07) * @cos(v * 2.3 - t * 0.05);
+    const n2 = 0.5 + 0.5 * @sin((u + v) * 4.0 - t * 0.11);
+    // Finer field: neighbouring circumcentres differ by about a facet's size,
+    // so this gives facet-to-facet variety while staying continuous.
+    const fine = 0.5 * @sin(u * 19.0 + t * 0.21) * @cos(v * 23.0 - t * 0.17) +
+        0.25 * @sin((0.7 * u - v) * 29.0 + t * 0.13);
+    const k = std.math.clamp((0.06 + 0.39 * n1 * n2 + 0.12 * fine) * opt_contrast, 0, 0.9);
+    // Hue wanders between the two accents over minutes, varying across the screen.
+    const h = std.math.clamp(0.5 + 0.5 * @sin(t * 0.013 + u * 1.7 - v * 1.1), 0, 1);
     return mix(col_bg, mix(col_a, col_b, h), k);
 }
 
@@ -355,60 +349,6 @@ const Buffer = struct {
     busy: bool = false,
 };
 
-// ---------------------------------------------------------------- per-pixel temporal smoothing
-
-/// What's on screen eases toward the freshly drawn mesh, per pixel and per
-/// R/G/B channel, through two first-order stages (an S-shaped approach — gentle
-/// start, gentle stop — like the quadratic easing used for the motion). So any
-/// change, including a Delaunay re-form or a colour stepping, becomes a
-/// continuous transition instead of a jump. Frame-rate independent.
-const smooth_tau = 0.12; // seconds per stage (≈0.3 s to settle): keeps ~93% edge crispness, no steps >2 levels/frame
-
-fn smoothAlpha(dt: f64) f32 {
-    return @floatCast(1 - @exp(-@max(dt, 0) / smooth_tau));
-}
-
-/// CPU version (shm fallback and --frames tests): float state per channel.
-const CpuSmooth = struct {
-    s1: []f32 = &.{},
-    s2: []f32 = &.{},
-    primed: bool = false,
-    last_t: f64 = 0,
-
-    fn deinit(m: *CpuSmooth) void {
-        if (m.s1.len > 0) gpa.free(m.s1);
-        if (m.s2.len > 0) gpa.free(m.s2);
-        m.* = .{};
-    }
-
-    /// Smooth `px` (XRGB8888) in place toward the mesh just drawn into it.
-    fn apply(m: *CpuSmooth, px: []u32, t: f64) !void {
-        if (m.s1.len != px.len * 3) {
-            m.deinit();
-            m.s1 = try gpa.alloc(f32, px.len * 3);
-            m.s2 = try gpa.alloc(f32, px.len * 3);
-        }
-        const a: f32 = if (m.primed) smoothAlpha(t - m.last_t) else 1;
-        m.primed = true;
-        m.last_t = t;
-        for (px, 0..) |*p, i| {
-            const cur = [3]f32{
-                @floatFromInt((p.* >> 16) & 0xff),
-                @floatFromInt((p.* >> 8) & 0xff),
-                @floatFromInt(p.* & 0xff),
-            };
-            var o: [3]u32 = undefined;
-            for (0..3) |k| {
-                const j = i * 3 + k;
-                m.s1[j] += (cur[k] - m.s1[j]) * a;
-                m.s2[j] += (m.s1[j] - m.s2[j]) * a;
-                o[k] = @intFromFloat(std.math.clamp(m.s2[j] + 0.5, 0, 255));
-            }
-            p.* = 0xff000000 | (o[0] << 16) | (o[1] << 8) | o[2];
-        }
-    }
-};
-
 const Output = struct {
     global_name: u32,
     wl_output: *c.wl_output,
@@ -424,17 +364,6 @@ const Output = struct {
     egl_window: ?*c.wl_egl_window = null,
     egl_surface: c.EGLSurface = c.EGL_NO_SURFACE,
     gl_verts: std.ArrayList(f32) = .empty,
-    smooth: CpuSmooth = .{},
-    // GPU smoothing: mesh snapshot + two ping-ponged half-float stages.
-    gl_w: usize = 0,
-    gl_h: usize = 0,
-    gl_smooth_ok: bool = false,
-    mesh_tex: c.GLuint = 0,
-    stage_tex: [4]c.GLuint = .{ 0, 0, 0, 0 }, // s1 a/b, s2 a/b
-    stage_fbo: [4]c.GLuint = .{ 0, 0, 0, 0 },
-    flip: usize = 0, // which of a/b holds the current stage values
-    gl_primed: bool = false,
-    gl_last_t: f64 = 0,
 };
 
 // ---------------------------------------------------------------- GPU (EGL + GLES2)
@@ -456,48 +385,20 @@ const vs_src =
     \\varying vec3 v_col;
     \\void main() { v_col = col; gl_Position = vec4(pos, 0.0, 1.0); }
 ;
+// ±0.5 LSB dither: hides the 1/255 steps each channel takes while the dark
+// colours drift slowly (otherwise facets visibly tick from level to level).
 const fs_src =
+    \\#ifdef GL_FRAGMENT_PRECISION_HIGH
+    \\precision highp float;
+    \\#else
     \\precision mediump float;
+    \\#endif
     \\varying vec3 v_col;
-    \\void main() { gl_FragColor = vec4(v_col, 1.0); }
-;
-const quad_vs =
-    \\attribute vec2 qpos;
-    \\varying vec2 v_uv;
-    \\void main() { v_uv = qpos * 0.5 + 0.5; gl_Position = vec4(qpos, 0.0, 1.0); }
-;
-// One smoothing stage: move the previous value toward the new one by u_a.
-const blend_fs =
-    \\#ifdef GL_FRAGMENT_PRECISION_HIGH
-    \\precision highp float;
-    \\#else
-    \\precision mediump float;
-    \\#endif
-    \\uniform sampler2D u_prev;
-    \\uniform sampler2D u_cur;
-    \\uniform float u_a;
-    \\varying vec2 v_uv;
-    \\void main() { gl_FragColor = vec4(mix(texture2D(u_prev, v_uv).rgb, texture2D(u_cur, v_uv).rgb, u_a), 1.0); }
-;
-// Present: ±0.5 LSB dither hides the 1/255 steps of slowly drifting channels.
-const present_fs =
-    \\#ifdef GL_FRAGMENT_PRECISION_HIGH
-    \\precision highp float;
-    \\#else
-    \\precision mediump float;
-    \\#endif
-    \\uniform sampler2D u_tex;
-    \\varying vec2 v_uv;
     \\void main() {
     \\    float n = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
-    \\    gl_FragColor = vec4(texture2D(u_tex, v_uv).rgb + (n - 0.5) / 255.0, 1.0);
+    \\    gl_FragColor = vec4(v_col + (n - 0.5) / 255.0, 1.0);
     \\}
 ;
-
-var gl_blend_prog: c.GLuint = 0;
-var gl_present_prog: c.GLuint = 0;
-var gl_quad_vbo: c.GLuint = 0;
-const half_float_oes: c.GLenum = 0x8D61; // GL_HALF_FLOAT_OES (gl2ext.h)
 
 /// Set up EGL on the Wayland display: GLES2, 4x MSAA if available. Any
 /// failure leaves use_gpu = false and the shm CPU renderer takes over.
@@ -547,7 +448,6 @@ fn linkProgram(vs: [*:0]const u8, fs: [*:0]const u8) c.GLuint {
     const prog = c.glCreateProgram();
     c.glAttachShader(prog, compileShader(c.GL_VERTEX_SHADER, vs));
     c.glAttachShader(prog, compileShader(c.GL_FRAGMENT_SHADER, fs));
-    c.glBindAttribLocation(prog, 0, "qpos");
     c.glLinkProgram(prog);
     var okv: c.GLint = 0;
     c.glGetProgramiv(prog, c.GL_LINK_STATUS, &okv);
@@ -561,12 +461,6 @@ fn buildProgram() void {
     gl_pos = c.glGetAttribLocation(gl_prog, "pos");
     gl_col = c.glGetAttribLocation(gl_prog, "col");
     c.glGenBuffers(1, &gl_vbo);
-    gl_blend_prog = linkProgram(quad_vs, blend_fs);
-    gl_present_prog = linkProgram(quad_vs, present_fs);
-    const quad = [_]f32{ -1, -1, 1, -1, -1, 1, 1, 1 };
-    c.glGenBuffers(1, &gl_quad_vbo);
-    c.glBindBuffer(c.GL_ARRAY_BUFFER, gl_quad_vbo);
-    c.glBufferData(c.GL_ARRAY_BUFFER, @sizeOf(@TypeOf(quad)), &quad, c.GL_STATIC_DRAW);
     gl_ready = true;
     // Mesa's software rasterizers (llvmpipe/softpipe) "work" without a GPU but
     // run on the CPU: treat them like no GPU for frame pacing.
@@ -600,7 +494,7 @@ fn renderGpu(out: *Output, w: usize, h: usize) void {
 
     out.gl_verts.clearRetainingCapacity();
     for (out.tris.items) |tr| {
-        const col = facetRgb(tr.a, tr.b, tr.c);
+        const col = facetRgb(tr, fw, fh);
         for ([3]u32{ tr.a, tr.b, tr.c }) |vi| {
             const p = out.verts.items[vi];
             out.gl_verts.appendSlice(gpa, &.{
@@ -615,7 +509,6 @@ fn renderGpu(out: *Output, w: usize, h: usize) void {
     c.glViewport(0, 0, @intCast(w), @intCast(h));
     c.glDisable(c.GL_BLEND);
 
-    // 1) The mesh, multisampled, into the window's framebuffer.
     c.glBindFramebuffer(c.GL_FRAMEBUFFER, 0);
     c.glClearColor(@floatCast(col_bg.r), @floatCast(col_bg.g), @floatCast(col_bg.b), 1);
     c.glClear(c.GL_COLOR_BUFFER_BIT);
@@ -631,86 +524,7 @@ fn renderGpu(out: *Output, w: usize, h: usize) void {
     c.glDisableVertexAttribArray(@intCast(gl_pos));
     c.glDisableVertexAttribArray(@intCast(gl_col));
 
-    // 2) Temporal smoothing (needs float render targets; else show the mesh as is).
-    ensureSmoothTargets(out, w, h);
-    if (out.gl_smooth_ok) {
-        c.glBindTexture(c.GL_TEXTURE_2D, out.mesh_tex);
-        c.glCopyTexSubImage2D(c.GL_TEXTURE_2D, 0, 0, 0, 0, 0, @intCast(w), @intCast(h)); // resolves MSAA
-        const a: f32 = if (out.gl_primed) smoothAlpha(scene_time - out.gl_last_t) else 1;
-        out.gl_primed = true;
-        out.gl_last_t = scene_time;
-        const cur = out.flip;
-        const nxt = 1 - cur;
-        stagePass(out.stage_fbo[nxt], out.stage_tex[cur], out.mesh_tex, a); // s1 ← mix(s1, mesh)
-        stagePass(out.stage_fbo[2 + nxt], out.stage_tex[2 + cur], out.stage_tex[nxt], a); // s2 ← mix(s2, s1)
-        out.flip = nxt;
-        // 3) Present s2 with dither.
-        c.glBindFramebuffer(c.GL_FRAMEBUFFER, 0);
-        c.glUseProgram(gl_present_prog);
-        c.glActiveTexture(c.GL_TEXTURE0);
-        c.glBindTexture(c.GL_TEXTURE_2D, out.stage_tex[2 + nxt]);
-        c.glUniform1i(c.glGetUniformLocation(gl_present_prog, "u_tex"), 0);
-        drawQuad();
-    }
     _ = c.eglSwapBuffers(egl_display, out.egl_surface);
-}
-
-fn drawQuad() void {
-    c.glBindBuffer(c.GL_ARRAY_BUFFER, gl_quad_vbo);
-    c.glEnableVertexAttribArray(0);
-    c.glVertexAttribPointer(0, 2, c.GL_FLOAT, c.GL_FALSE, 0, null);
-    c.glDrawArrays(c.GL_TRIANGLE_STRIP, 0, 4);
-    c.glDisableVertexAttribArray(0);
-}
-
-fn stagePass(fbo: c.GLuint, prev: c.GLuint, cur: c.GLuint, a: f32) void {
-    c.glBindFramebuffer(c.GL_FRAMEBUFFER, fbo);
-    c.glUseProgram(gl_blend_prog);
-    c.glActiveTexture(c.GL_TEXTURE0);
-    c.glBindTexture(c.GL_TEXTURE_2D, prev);
-    c.glActiveTexture(c.GL_TEXTURE1);
-    c.glBindTexture(c.GL_TEXTURE_2D, cur);
-    c.glUniform1i(c.glGetUniformLocation(gl_blend_prog, "u_prev"), 0);
-    c.glUniform1i(c.glGetUniformLocation(gl_blend_prog, "u_cur"), 1);
-    c.glUniform1f(c.glGetUniformLocation(gl_blend_prog, "u_a"), a);
-    drawQuad();
-    c.glActiveTexture(c.GL_TEXTURE0);
-}
-
-fn newTex(w: usize, h: usize, format: c.GLenum, kind: c.GLenum) c.GLuint {
-    var t: c.GLuint = 0;
-    c.glGenTextures(1, &t);
-    c.glBindTexture(c.GL_TEXTURE_2D, t);
-    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MIN_FILTER, c.GL_NEAREST);
-    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MAG_FILTER, c.GL_NEAREST);
-    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_WRAP_S, c.GL_CLAMP_TO_EDGE);
-    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_WRAP_T, c.GL_CLAMP_TO_EDGE);
-    c.glTexImage2D(c.GL_TEXTURE_2D, 0, @intCast(format), @intCast(w), @intCast(h), 0, format, kind, null);
-    return t;
-}
-
-/// (Re)create the mesh snapshot and the four half-float stage targets.
-fn ensureSmoothTargets(out: *Output, w: usize, h: usize) void {
-    if (out.gl_w == w and out.gl_h == h) return;
-    if (out.mesh_tex != 0) {
-        c.glDeleteTextures(1, &out.mesh_tex);
-        c.glDeleteTextures(4, &out.stage_tex);
-        c.glDeleteFramebuffers(4, &out.stage_fbo);
-    }
-    out.gl_w = w;
-    out.gl_h = h;
-    out.gl_primed = false;
-    out.mesh_tex = newTex(w, h, c.GL_RGB, c.GL_UNSIGNED_BYTE);
-    c.glGenFramebuffers(4, &out.stage_fbo);
-    out.gl_smooth_ok = true;
-    for (0..4) |k| {
-        out.stage_tex[k] = newTex(w, h, c.GL_RGBA, half_float_oes);
-        c.glBindFramebuffer(c.GL_FRAMEBUFFER, out.stage_fbo[k]);
-        c.glFramebufferTexture2D(c.GL_FRAMEBUFFER, c.GL_COLOR_ATTACHMENT0, c.GL_TEXTURE_2D, out.stage_tex[k], 0);
-        if (c.glCheckFramebufferStatus(c.GL_FRAMEBUFFER) != c.GL_FRAMEBUFFER_COMPLETE) out.gl_smooth_ok = false;
-    }
-    c.glBindFramebuffer(c.GL_FRAMEBUFFER, 0);
-    if (!out.gl_smooth_ok) std.debug.print("jerkwall: no half-float render targets; temporal smoothing off\n", .{});
 }
 
 var outputs: std.ArrayList(*Output) = .empty;
@@ -745,9 +559,8 @@ fn ensureBuffer(b: *Buffer, w: usize, h: usize) !void {
     b.busy = false;
 }
 
-/// Draw the current scene into an XRGB8888 pixel buffer; with `smooth`,
-/// ease what's shown toward it (live CPU renderer, --frames tests).
-fn drawFrame(px: []u32, w: usize, h: usize, verts: *std.ArrayList(V), tris: *std.ArrayList(Tri), smooth: ?*CpuSmooth) !void {
+/// Draw the current scene into an XRGB8888 pixel buffer.
+fn drawFrame(px: []u32, w: usize, h: usize, verts: *std.ArrayList(V), tris: *std.ArrayList(Tri)) !void {
     const fw: f64 = @floatFromInt(w);
     const fh: f64 = @floatFromInt(h);
     verts.clearRetainingCapacity();
@@ -755,9 +568,8 @@ fn drawFrame(px: []u32, w: usize, h: usize, verts: *std.ArrayList(V), tris: *std
     try triangulate(verts.items, tris);
     @memset(px, pack(col_bg));
     for (tris.items) |tr| {
-        fillTri(px, w, h, verts.items[tr.a], verts.items[tr.b], verts.items[tr.c], pack(facetRgb(tr.a, tr.b, tr.c)));
+        fillTri(px, w, h, verts.items[tr.a], verts.items[tr.b], verts.items[tr.c], pack(facetRgb(tr, fw, fh)));
     }
-    if (smooth) |sm| try sm.apply(px, scene_time);
 }
 
 /// Write XRGB8888 pixels as an 8-bit RGB PNG (zlib "stored" blocks: no
@@ -846,7 +658,7 @@ fn render(out: *Output) void {
     } else return; // both in use by the compositor; skip this frame
     ensureBuffer(buf, w, h) catch |err| fatal("buffer: {s}", .{@errorName(err)});
 
-    drawFrame(buf.data, w, h, &out.verts, &out.tris, &out.smooth) catch return;
+    drawFrame(buf.data, w, h, &out.verts, &out.tris) catch return;
 
     c.wl_surface_set_buffer_scale(out.surface, @intCast(scale));
     c.wl_surface_attach(out.surface, buf.wl, 0, 0);
@@ -935,7 +747,6 @@ fn registryRemove(_: ?*anyopaque, _: ?*c.wl_registry, name: u32) callconv(.c) vo
         if (out.egl_surface != c.EGL_NO_SURFACE) _ = c.eglDestroySurface(egl_display, out.egl_surface);
         if (out.egl_window) |ew| c.wl_egl_window_destroy(ew);
         out.gl_verts.deinit(gpa);
-        out.smooth.deinit();
         out.tris.deinit(gpa);
         out.verts.deinit(gpa);
         c.wl_output_destroy(out.wl_output);
@@ -1013,7 +824,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
             i += 2;
         } else if (std.mem.eql(u8, k, "--frames")) {
             // --frames N DIR (after --frame W H X): N consecutive 30 fps frames
-            // with colour easing, as DIR/f000.png… For smoothness tests.
+            // as DIR/f000.png…, for smoothness tests.
             if (i + 2 >= argv.len) usage();
             seq_n = std.math.clamp(std.fmt.parseInt(usize, v, 10) catch usage(), 1, 10000);
             seq_dir = argv[i + 2];
@@ -1045,18 +856,17 @@ pub fn main(init: std.process.Init.Minimal) !void {
         var tris: std.ArrayList(Tri) = .empty;
 
         if (seq_dir) |dir| {
-            var sm = CpuSmooth{};
             const t0 = scene_time;
             for (0..seq_n) |fi| {
                 setTime(t0 + @as(f64, @floatFromInt(fi)) / 30.0);
-                try drawFrame(px, frame_w, frame_h, &verts, &tris, &sm);
+                try drawFrame(px, frame_w, frame_h, &verts, &tris);
                 var name: [4096]u8 = undefined;
                 const fp = std.fmt.bufPrintZ(&name, "{s}/f{d:0>3}.png", .{ std.mem.span(dir), fi }) catch usage();
                 writePng(fp.ptr, px, frame_w, frame_h) catch |err| fatal("writing {s}: {s}", .{ fp, @errorName(err) });
             }
             return;
         }
-        try drawFrame(px, frame_w, frame_h, &verts, &tris, null);
+        try drawFrame(px, frame_w, frame_h, &verts, &tris);
         writePng(path, px, frame_w, frame_h) catch |err| fatal("writing {s}: {s}", .{ path, @errorName(err) });
         return;
     }
