@@ -1,0 +1,348 @@
+# Colour themes for jerkarchy (chezmoi data). Each theme maps the same roles;
+# templates read the active one: `index .themes .theme`. Palettes come from
+# each theme's upstream project (see `source`), not from any other distro.
+# Roles: bg (wallpaper/bar), bg_alt (panels), border, fg, fg_bright, fg_dim,
+# fg_mute, accent (focus, selection), accent2 (alerts, urgent), ok, warn, err,
+# ansi (16 terminal colours: 0-7 normal, 8-15 bright).
+
+[themes.jerkarchy]
+title = "jerkarchy"
+source = "jerkarchy"
+light = false
+bg = "#0a0a0f"
+bg_alt = "#12121a"
+border = "#2a2a35"
+fg = "#c8c8d0"
+fg_bright = "#e5e1e7"
+fg_dim = "#8a8aa0"
+fg_mute = "#55556a"
+accent = "#00f0ff"
+accent2 = "#ff2b6d"
+ok = "#00ff9f"
+warn = "#ffcc00"
+err = "#ff2b6d"
+ansi = ["#1a1a22", "#ff2b6d", "#00ff9f", "#ffcc00", "#3d7eff", "#c74ded", "#00f0ff", "#c8c8d0", "#55556a", "#ff5c8a", "#5cffbf", "#ffe066", "#6e9eff", "#d980f5", "#66f6ff", "#ffffff"]
+
+[themes.tokyo-night]
+title = "Tokyo Night"
+source = "folke/tokyonight.nvim"
+light = false
+bg = "#1a1b26"
+bg_alt = "#16161e"
+border = "#292e42"
+fg = "#a9b1d6"
+fg_bright = "#c0caf5"
+fg_dim = "#565f89"
+fg_mute = "#414868"
+accent = "#7aa2f7"
+accent2 = "#bb9af7"
+ok = "#9ece6a"
+warn = "#e0af68"
+err = "#f7768e"
+ansi = ["#15161e", "#f7768e", "#9ece6a", "#e0af68", "#7aa2f7", "#bb9af7", "#7dcfff", "#a9b1d6", "#414868", "#f7768e", "#9ece6a", "#e0af68", "#7aa2f7", "#bb9af7", "#7dcfff", "#c0caf5"]
+
+[themes.tokyo-storm]
+title = "Tokyo Night Storm"
+source = "folke/tokyonight.nvim"
+light = false
+bg = "#24283b"
+bg_alt = "#1f2335"
+border = "#292e42"
+fg = "#a9b1d6"
+fg_bright = "#c0caf5"
+fg_dim = "#565f89"
+fg_mute = "#414868"
+accent = "#7aa2f7"
+accent2 = "#bb9af7"
+ok = "#9ece6a"
+warn = "#e0af68"
+err = "#f7768e"
+ansi = ["#1d202f", "#f7768e", "#9ece6a", "#e0af68", "#7aa2f7", "#bb9af7", "#7dcfff", "#a9b1d6", "#414868", "#f7768e", "#9ece6a", "#e0af68", "#7aa2f7", "#bb9af7", "#7dcfff", "#c0caf5"]
+
+[themes.tokyo-moon]
+title = "Tokyo Night Moon"
+source = "folke/tokyonight.nvim"
+light = false
+bg = "#222436"
+bg_alt = "#1e2030"
+border = "#2f334d"
+fg = "#c8d3f5"
+fg_bright = "#c8d3f5"
+fg_dim = "#636da6"
+fg_mute = "#444a73"
+accent = "#82aaff"
+accent2 = "#c099ff"
+ok = "#c3e88d"
+warn = "#ffc777"
+err = "#ff757f"
+ansi = ["#1b1d2b", "#ff757f", "#c3e88d", "#ffc777", "#82aaff", "#c099ff", "#86e1fc", "#828bb8", "#444a73", "#ff757f", "#c3e88d", "#ffc777", "#82aaff", "#c099ff", "#86e1fc", "#c8d3f5"]
+
+[themes.tokyo-day]
+title = "Tokyo Night Day"
+source = "folke/tokyonight.nvim"
+light = true
+bg = "#e1e2e7"
+bg_alt = "#d0d5e3"
+border = "#c4c8da"
+fg = "#3760bf"
+fg_bright = "#3760bf"
+fg_dim = "#848cb5"
+fg_mute = "#a1a6c5"
+accent = "#2e7de9"
+accent2 = "#9854f1"
+ok = "#587539"
+warn = "#8c6c3e"
+err = "#f52a65"
+ansi = ["#e9e9ed", "#f52a65", "#587539", "#8c6c3e", "#2e7de9", "#9854f1", "#007197", "#6172b0", "#a1a6c5", "#f52a65", "#587539", "#8c6c3e", "#2e7de9", "#9854f1", "#007197", "#3760bf"]
+
+[themes.catppuccin-latte]
+title = "Catppuccin Latte"
+source = "catppuccin/palette"
+light = true
+bg = "#eff1f5"
+bg_alt = "#e6e9ef"
+border = "#ccd0da"
+fg = "#4c4f69"
+fg_bright = "#4c4f69"
+fg_dim = "#6c6f85"
+fg_mute = "#9ca0b0"
+accent = "#1e66f5"
+accent2 = "#8839ef"
+ok = "#40a02b"
+warn = "#df8e1d"
+err = "#d20f39"
+ansi = ["#bcc0cc", "#d20f39", "#40a02b", "#df8e1d", "#1e66f5", "#ea76cb", "#179299", "#5c5f77", "#acb0be", "#d20f39", "#40a02b", "#df8e1d", "#1e66f5", "#ea76cb", "#179299", "#6c6f85"]
+
+[themes.catppuccin-frappe]
+title = "Catppuccin Frappé"
+source = "catppuccin/palette"
+light = false
+bg = "#303446"
+bg_alt = "#292c3c"
+border = "#414559"
+fg = "#c6d0f5"
+fg_bright = "#c6d0f5"
+fg_dim = "#a5adce"
+fg_mute = "#737994"
+accent = "#8caaee"
+accent2 = "#ca9ee6"
+ok = "#a6d189"
+warn = "#e5c890"
+err = "#e78284"
+ansi = ["#51576d", "#e78284", "#a6d189", "#e5c890", "#8caaee", "#f4b8e4", "#81c8be", "#b5bfe2", "#626880", "#e78284", "#a6d189", "#e5c890", "#8caaee", "#f4b8e4", "#81c8be", "#c6d0f5"]
+
+[themes.catppuccin-macchiato]
+title = "Catppuccin Macchiato"
+source = "catppuccin/palette"
+light = false
+bg = "#24273a"
+bg_alt = "#1e2030"
+border = "#363a4f"
+fg = "#cad3f5"
+fg_bright = "#cad3f5"
+fg_dim = "#a5adcb"
+fg_mute = "#6e738d"
+accent = "#8aadf4"
+accent2 = "#c6a0f6"
+ok = "#a6da95"
+warn = "#eed49f"
+err = "#ed8796"
+ansi = ["#494d64", "#ed8796", "#a6da95", "#eed49f", "#8aadf4", "#f5bde6", "#8bd5ca", "#b8c0e0", "#5b6078", "#ed8796", "#a6da95", "#eed49f", "#8aadf4", "#f5bde6", "#8bd5ca", "#cad3f5"]
+
+[themes.catppuccin-mocha]
+title = "Catppuccin Mocha"
+source = "catppuccin/palette"
+light = false
+bg = "#1e1e2e"
+bg_alt = "#181825"
+border = "#313244"
+fg = "#cdd6f4"
+fg_bright = "#cdd6f4"
+fg_dim = "#a6adc8"
+fg_mute = "#6c7086"
+accent = "#89b4fa"
+accent2 = "#cba6f7"
+ok = "#a6e3a1"
+warn = "#f9e2af"
+err = "#f38ba8"
+ansi = ["#45475a", "#f38ba8", "#a6e3a1", "#f9e2af", "#89b4fa", "#f5c2e7", "#94e2d5", "#bac2de", "#585b70", "#f38ba8", "#a6e3a1", "#f9e2af", "#89b4fa", "#f5c2e7", "#94e2d5", "#cdd6f4"]
+
+[themes.gruvbox-dark]
+title = "Gruvbox Dark"
+source = "morhetz/gruvbox"
+light = false
+bg = "#282828"
+bg_alt = "#1d2021"
+border = "#3c3836"
+fg = "#ebdbb2"
+fg_bright = "#fbf1c7"
+fg_dim = "#a89984"
+fg_mute = "#665c54"
+accent = "#83a598"
+accent2 = "#fe8019"
+ok = "#b8bb26"
+warn = "#fabd2f"
+err = "#fb4934"
+ansi = ["#282828", "#cc241d", "#98971a", "#d79921", "#458588", "#b16286", "#689d6a", "#a89984", "#928374", "#fb4934", "#b8bb26", "#fabd2f", "#83a598", "#d3869b", "#8ec07c", "#ebdbb2"]
+
+[themes.gruvbox-light]
+title = "Gruvbox Light"
+source = "morhetz/gruvbox"
+light = true
+bg = "#fbf1c7"
+bg_alt = "#f2e5bc"
+border = "#ebdbb2"
+fg = "#3c3836"
+fg_bright = "#282828"
+fg_dim = "#7c6f64"
+fg_mute = "#a89984"
+accent = "#076678"
+accent2 = "#af3a03"
+ok = "#79740e"
+warn = "#b57614"
+err = "#9d0006"
+ansi = ["#fbf1c7", "#cc241d", "#98971a", "#d79921", "#458588", "#b16286", "#689d6a", "#7c6f64", "#928374", "#9d0006", "#79740e", "#b57614", "#076678", "#8f3f71", "#427b58", "#3c3836"]
+
+[themes.everforest-dark]
+title = "Everforest Dark"
+source = "sainnhe/everforest"
+light = false
+bg = "#2d353b"
+bg_alt = "#232a2e"
+border = "#475258"
+fg = "#d3c6aa"
+fg_bright = "#d3c6aa"
+fg_dim = "#9da9a0"
+fg_mute = "#7a8478"
+accent = "#a7c080"
+accent2 = "#e69875"
+ok = "#83c092"
+warn = "#dbbc7f"
+err = "#e67e80"
+ansi = ["#475258", "#e67e80", "#a7c080", "#dbbc7f", "#7fbbb3", "#d699b6", "#83c092", "#d3c6aa", "#7a8478", "#e67e80", "#a7c080", "#dbbc7f", "#7fbbb3", "#d699b6", "#83c092", "#d3c6aa"]
+
+[themes.nord]
+title = "Nord"
+source = "nordtheme"
+light = false
+bg = "#2e3440"
+bg_alt = "#3b4252"
+border = "#434c5e"
+fg = "#d8dee9"
+fg_bright = "#eceff4"
+fg_dim = "#616e88"
+fg_mute = "#4c566a"
+accent = "#88c0d0"
+accent2 = "#b48ead"
+ok = "#a3be8c"
+warn = "#ebcb8b"
+err = "#bf616a"
+ansi = ["#3b4252", "#bf616a", "#a3be8c", "#ebcb8b", "#81a1c1", "#b48ead", "#88c0d0", "#e5e9f0", "#4c566a", "#bf616a", "#a3be8c", "#ebcb8b", "#81a1c1", "#b48ead", "#8fbcbb", "#eceff4"]
+
+[themes.kanagawa]
+title = "Kanagawa"
+source = "rebelot/kanagawa.nvim"
+light = false
+bg = "#1f1f28"
+bg_alt = "#16161d"
+border = "#2a2a37"
+fg = "#dcd7ba"
+fg_bright = "#dcd7ba"
+fg_dim = "#727169"
+fg_mute = "#54546d"
+accent = "#7e9cd8"
+accent2 = "#957fb8"
+ok = "#98bb6c"
+warn = "#e6c384"
+err = "#e82424"
+ansi = ["#16161d", "#c34043", "#76946a", "#c0a36e", "#7e9cd8", "#957fb8", "#6a9589", "#c8c093", "#727169", "#e82424", "#98bb6c", "#e6c384", "#7fb4ca", "#938aa9", "#7aa89f", "#dcd7ba"]
+
+[themes.rose-pine]
+title = "Rosé Pine"
+source = "rose-pine/palette"
+light = false
+bg = "#191724"
+bg_alt = "#1f1d2e"
+border = "#26233a"
+fg = "#e0def4"
+fg_bright = "#e0def4"
+fg_dim = "#908caa"
+fg_mute = "#6e6a86"
+accent = "#9ccfd8"
+accent2 = "#eb6f92"
+ok = "#31748f"
+warn = "#f6c177"
+err = "#eb6f92"
+ansi = ["#26233a", "#eb6f92", "#31748f", "#f6c177", "#9ccfd8", "#c4a7e7", "#ebbcba", "#e0def4", "#6e6a86", "#eb6f92", "#31748f", "#f6c177", "#9ccfd8", "#c4a7e7", "#ebbcba", "#e0def4"]
+
+[themes.rose-pine-moon]
+title = "Rosé Pine Moon"
+source = "rose-pine/palette"
+light = false
+bg = "#232136"
+bg_alt = "#2a273f"
+border = "#393552"
+fg = "#e0def4"
+fg_bright = "#e0def4"
+fg_dim = "#908caa"
+fg_mute = "#6e6a86"
+accent = "#9ccfd8"
+accent2 = "#eb6f92"
+ok = "#3e8fb0"
+warn = "#f6c177"
+err = "#eb6f92"
+ansi = ["#393552", "#eb6f92", "#3e8fb0", "#f6c177", "#9ccfd8", "#c4a7e7", "#ea9a97", "#e0def4", "#6e6a86", "#eb6f92", "#3e8fb0", "#f6c177", "#9ccfd8", "#c4a7e7", "#ea9a97", "#e0def4"]
+
+[themes.rose-pine-dawn]
+title = "Rosé Pine Dawn"
+source = "rose-pine/palette"
+light = true
+bg = "#faf4ed"
+bg_alt = "#fffaf3"
+border = "#f2e9e1"
+fg = "#575279"
+fg_bright = "#575279"
+fg_dim = "#797593"
+fg_mute = "#9893a5"
+accent = "#56949f"
+accent2 = "#b4637a"
+ok = "#286983"
+warn = "#ea9d34"
+err = "#b4637a"
+ansi = ["#f2e9e1", "#b4637a", "#286983", "#ea9d34", "#56949f", "#907aa9", "#d7827e", "#575279", "#9893a5", "#b4637a", "#286983", "#ea9d34", "#56949f", "#907aa9", "#d7827e", "#575279"]
+
+[themes.flexoki-dark]
+title = "Flexoki Dark"
+source = "kepano/flexoki"
+light = false
+bg = "#100f0f"
+bg_alt = "#1c1b1a"
+border = "#282726"
+fg = "#cecdc3"
+fg_bright = "#cecdc3"
+fg_dim = "#878580"
+fg_mute = "#575653"
+accent = "#3aa99f"
+accent2 = "#ce5d97"
+ok = "#879a39"
+warn = "#d0a215"
+err = "#d14d41"
+ansi = ["#100f0f", "#d14d41", "#879a39", "#d0a215", "#4385be", "#ce5d97", "#3aa99f", "#878580", "#575653", "#d14d41", "#879a39", "#d0a215", "#4385be", "#ce5d97", "#3aa99f", "#cecdc3"]
+
+[themes.flexoki-light]
+title = "Flexoki Light"
+source = "kepano/flexoki"
+light = true
+bg = "#fffcf0"
+bg_alt = "#f2f0e5"
+border = "#e6e4d9"
+fg = "#100f0f"
+fg_bright = "#100f0f"
+fg_dim = "#6f6e69"
+fg_mute = "#b7b5ac"
+accent = "#24837b"
+accent2 = "#a02f6f"
+ok = "#66800b"
+warn = "#ad8301"
+err = "#af3029"
+ansi = ["#fffcf0", "#af3029", "#66800b", "#ad8301", "#205ea6", "#a02f6f", "#24837b", "#6f6e69", "#b7b5ac", "#af3029", "#66800b", "#ad8301", "#205ea6", "#a02f6f", "#24837b", "#100f0f"]

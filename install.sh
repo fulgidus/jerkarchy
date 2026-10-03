@@ -32,7 +32,16 @@ if [ -d "$SRC/.git" ]; then git -C "$SRC" pull --ff-only; else git clone --depth
 
 say "applying dotfiles (chezmoi)"
 mkdir -p "$HOME/.config/chezmoi"
-printf 'sourceDir = "%s"\n' "$SRC" > "$HOME/.config/chezmoi/chezmoi.toml"
+# Keep an existing config (it holds your settings) on re-install.
+if [ ! -f "$HOME/.config/chezmoi/chezmoi.toml" ]; then
+    cat > "$HOME/.config/chezmoi/chezmoi.toml" <<CFG
+sourceDir = "$SRC"
+
+# jerkarchy settings override the defaults in home/.chezmoidata/settings.toml.
+# Change them with jerkarchy-set KEY VALUE or the settings menu (Super+,).
+[data]
+CFG
+fi
 chezmoi apply
 
 say "building Zig helpers (sway-binds, jerkwall)"

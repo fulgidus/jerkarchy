@@ -1,0 +1,35 @@
+{{- $t := index .themes .theme -}}
+# swaylock — ring always visible so a locked screen never looks like a dead
+# one. The background image is passed by session-lock (the live wallpaper's
+# current frame, per output); color= is the fallback.
+scaling=fill
+color={{ $t.bg | trimPrefix "#" }}
+indicator-idle-visible
+indicator-radius=90
+indicator-thickness=8
+show-failed-attempts
+ignore-empty-password
+font=JetBrainsMono Nerd Font
+
+inside-color={{ $t.bg | trimPrefix "#" }}cc
+ring-color={{ $t.accent | trimPrefix "#" }}ff
+line-color=00000000
+separator-color=00000000
+text-color={{ $t.fg | trimPrefix "#" }}ff
+key-hl-color={{ $t.accent2 | trimPrefix "#" }}ff
+bs-hl-color={{ $t.warn | trimPrefix "#" }}ff
+
+inside-ver-color={{ $t.bg | trimPrefix "#" }}cc
+ring-ver-color={{ $t.ok | trimPrefix "#" }}ff
+text-ver-color={{ $t.ok | trimPrefix "#" }}ff
+
+inside-wrong-color={{ $t.bg | trimPrefix "#" }}cc
+ring-wrong-color={{ $t.accent2 | trimPrefix "#" }}ff
+text-wrong-color={{ $t.accent2 | trimPrefix "#" }}ff
+
+inside-clear-color={{ $t.bg | trimPrefix "#" }}cc
+ring-clear-color={{ $t.warn | trimPrefix "#" }}ff
+text-clear-color={{ $t.warn | trimPrefix "#" }}ff
+
+layout-bg-color={{ $t.bg | trimPrefix "#" }}cc
+layout-text-color={{ $t.fg | trimPrefix "#" }}ff

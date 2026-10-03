@@ -6,6 +6,7 @@
 #   ci/check.sh --quick    skip the Zig build
 #
 # Needs: bash, python3, chezmoi, sway, fuzzel, zig (unless --quick).
+# Never touches the real home: everything renders into temp dirs.
 # shellcheck is used when installed (CI always installs it).
 set -uo pipefail
 
@@ -82,6 +83,69 @@ if need fuzzel; then
         if fuzzel --config "$f" --check-config >"$TMP/err" 2>&1; then ok "${f#"$FAKEHOME"/}"; else bad "${f#"$FAKEHOME"/}"; sed 's/^/        /' "$TMP/err"; fi
     done
 fi
+
+step "themes (schema, and every theme renders and validates)"
+if chezmoi data --source "$ROOT" --format json >"$TMP/data.json" 2>"$TMP/err" && python3 - "$TMP/data.json" <<'EOF' 2>"$TMP/err"
+import json, re, sys
+d = json.load(open(sys.argv[1]))
+roles = "bg bg_alt border fg fg_bright fg_dim fg_mute accent accent2 ok warn err".split()
+hexc = re.compile(r"^#[0-9a-fA-F]{6}$")
+bad = []
+for name, t in d["themes"].items():
+    for r in roles:
+        if not hexc.match(str(t.get(r, ""))): bad.append(f"{name}.{r} = {t.get(r)!r}")
+    if len(t.get("ansi", [])) != 16 or not all(hexc.match(c) for c in t["ansi"]): bad.append(f"{name}.ansi")
+    if not isinstance(t.get("light"), bool) or not t.get("title"): bad.append(f"{name}: title/light")
+if d.get("theme") not in d["themes"]: bad.append(f"default theme {d.get('theme')!r} missing")
+if bad: sys.exit("\n".join(bad))
+print(" ".join(sorted(d["themes"])), file=open(sys.argv[1] + ".names", "w"))
+EOF
+then
+    ok "schema ($(wc -w <"$TMP/data.json.names") themes)"
+    for th in $(cat "$TMP/data.json.names"); do
+        h="$TMP/theme-$th"; mkdir -p "$h/.config/chezmoi"
+        printf 'sourceDir = "%s"\n[data]\ntheme = "%s"\n' "$ROOT" "$th" >"$h/.config/chezmoi/chezmoi.toml"
+        r=""
+        HOME="$h" chezmoi apply --config "$h/.config/chezmoi/chezmoi.toml" --destination "$h" \
+            --no-tty --force </dev/null >"$TMP/err" 2>&1 || r="$r apply"
+        if [ -z "$r" ]; then
+            HOME="$h" WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 \
+                sway -C -c "$h/.config/sway/config" >"$TMP/err" 2>&1 && ! grep -qiE 'error|warn' "$TMP/err" || r="$r sway"
+            for f in "$h"/.config/fuzzel/*.ini; do fuzzel --config "$f" --check-config >/dev/null 2>&1 || r="$r ${f##*/}"; done
+            # Outputs of *.tmpl sources must not contain template syntax or <no value>.
+            for src in $(find home -name '*.tmpl'); do
+                tgt=$(HOME="$h" chezmoi target-path --source "$ROOT" --destination "$h" "$ROOT/$src" 2>/dev/null) || continue
+                grep -qE '\{\{|<no value>' "$tgt" 2>/dev/null && r="$r unrendered:${tgt#"$h"/}"
+            done
+        fi
+        if [ -z "$r" ]; then ok "$th"; else bad "$th:$r"; sed 's/^/        /' "$TMP/err" | tail -5; fi
+    done
+else
+    bad "theme data"; sed 's/^/        /' "$TMP/err"
+fi
+
+step "jerkarchy-set (writes chezmoi.toml [data] in a temp home)"
+JH="$TMP/set-home"; mkdir -p "$JH/.config/chezmoi"
+printf 'sourceDir = "%s"\n\n[data]\ntheme = "jerkarchy"\n\n[diff]\npager = ""\n' "$ROOT" >"$JH/.config/chezmoi/chezmoi.toml"
+JS="$FAKEHOME/.local/bin/jerkarchy-set"
+jset() { HOME="$JH" XDG_CONFIG_HOME="$JH/.config" SWAYSOCK="" "$JS" "$@" </dev/null; }
+if HOME="$JH" chezmoi apply --no-tty --force </dev/null >"$TMP/err" 2>&1 &&
+        jset theme nord >/dev/null 2>"$TMP/err" && jset wall_fps 24 >/dev/null 2>>"$TMP/err" &&
+        [ "$(jset get theme)" = nord ] && [ "$(jset get wall_fps)" = 24 ] &&
+        grep -q '^--fps 24$' "$JH/.config/jerkwall/config" &&
+        awk '/^\[diff\]/{d=1} d&&/wall_fps/{exit 1}' "$JH/.config/chezmoi/chezmoi.toml"; then
+    ok "set + apply (theme, wall_fps; key lands in [data])"
+else
+    bad "set + apply"; sed 's/^/        /' "$TMP/err"
+fi
+for args in "theme nope" "wall_fps 0" "wall_fps 2.5" "wall_contrast 9" "bogus 1"; do
+    # shellcheck disable=SC2086
+    if jset $args >/dev/null 2>&1; then bad "accepts '$args'"; else ok "rejects '$args'"; fi
+done
+echo 'hand edit' >>"$JH/.config/mako/config"
+if jset theme tokyo-night >/dev/null 2>&1 || ! grep -q '^theme = "nord"' "$JH/.config/chezmoi/chezmoi.toml"; then
+    bad "hand-edited file: must refuse and leave settings unchanged"
+else ok "refuses to clobber a hand-edited file"; fi
 
 step "bar-battery against fake batteries (output must be valid JSON)"
 BB="$FAKEHOME/.local/bin/bar-battery"

@@ -151,6 +151,12 @@ live; they change.
   Output consumed by waybar must stay valid JSON in every case.
 - Say plainly what you could *not* test (clicks, hover tooltips, real
   pairing/connecting, multi-monitor) instead of implying it was tested.
+- **Never let tests reach the live session.** Headless test clients share
+  the user's D-Bus session: their errors pop up as real notifications
+  (headless wezterms once left 19). Stop test clients before killing the test
+  compositor, and dismiss anything they posted. Build scripts that install
+  into `~/.local/bin` (`src/*/build.sh`) replace the live binary: build
+  elsewhere (`zig build-exe … -femit-bin=$TMP/…`) for experiments.
 - **The user can't see your tool output.** Screenshots and renders you view
   are visible only to you. To show the user something visual, open it on
   their screen (`swaymsg exec qview <file>`) or save it under `~/Pictures`
@@ -197,12 +203,25 @@ live; they change.
 
 ## 7. Look and feel
 
-- Palette (use these exact values): background `#0a0a0f`, text `#c8c8d0`,
-  bright text `#e5e1e7`, dim `#55556a`/`#8a8aa0`, borders `#2a2a35`,
+- **Colours come from themes, never from configs.** Palettes live in
+  `home/.chezmoidata/themes.toml` (one table per theme, same roles: `bg`,
+  `bg_alt`, `border`, `fg`, `fg_bright`, `fg_dim`, `fg_mute`, `accent`,
+  `accent2`, `ok`, `warn`, `err`, 16 `ansi`). Anything with a colour is a
+  `.tmpl` that starts with `{{- $t := index .themes .theme -}}` and uses
+  `{{ $t.accent }}` etc. A new theme takes its palette from that theme's own
+  upstream project (`source`), not from another distro, and must pass
+  `ci/check.sh` (it renders and validates every theme).
+- **Settings** (`theme`, `wall_*`): defaults in
+  `home/.chezmoidata/settings.toml`, the user's values in the `[data]`
+  section of `~/.config/chezmoi/chezmoi.toml`. Change them only through
+  `jerkarchy-set` (the menu, `jerkarchy-settings`, calls it); it refuses to
+  run over hand-edited files. A new setting needs: a default, validation in
+  `jerkarchy-set`, a reload step, and a menu entry.
+- The default theme, `jerkarchy`: background `#0a0a0f`, text `#c8c8d0`,
   **cyan `#00f0ff`** (focus/accent), **magenta `#ff2b6d`** (alerts,
   discharging, performance), green `#00ff9f` (charging, power-saver), yellow
   `#ffcc00` (caffeine, warnings). Font: JetBrainsMono Nerd Font. Square
-  corners, 1–2 px borders, no animations.
+  corners, 1–2 px borders, no animations (all themes).
 - **Bar popups must look like the bar**: fuzzel drop-downs anchored top-right
   under the bar, styled by `home/dot_config/fuzzel/bar-menu.ini`
   (`wifi-menu`, `bt-menu` are the reference). No centered generic windows

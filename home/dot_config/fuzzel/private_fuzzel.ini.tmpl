@@ -1,0 +1,32 @@
+{{- $t := index .themes .theme -}}
+# fuzzel — the Super+Space launcher, centred. Drop-downs from the bar use
+# bar-menu.ini instead. Colours come from the active theme.
+[main]
+font=JetBrainsMono Nerd Font:size=13
+terminal=wezterm start --
+prompt="› "
+layer=overlay
+lines=15
+width=60
+dpi-aware=no
+inner-pad=10
+horizontal-pad=40
+vertical-pad=15
+match-counter=yes
+
+[colors]
+background={{ $t.bg | trimPrefix "#" }}f0
+text={{ $t.fg | trimPrefix "#" }}ff
+prompt={{ $t.accent | trimPrefix "#" }}ff
+placeholder={{ $t.fg_mute | trimPrefix "#" }}ff
+input={{ $t.fg_bright | trimPrefix "#" }}ff
+match={{ $t.accent2 | trimPrefix "#" }}ff
+selection={{ $t.accent | trimPrefix "#" }}ff
+selection-text={{ $t.bg | trimPrefix "#" }}ff
+selection-match={{ $t.accent2 | trimPrefix "#" }}ff
+counter={{ $t.fg_mute | trimPrefix "#" }}ff
+border={{ $t.accent | trimPrefix "#" }}ff
+
+[border]
+width=2
+radius=0

@@ -1,7 +1,8 @@
+{{- $t := index .themes .theme -}}
 font=JetBrains Mono NF 11
-background-color=#0a0a0fee
-text-color=#c8c8d0
-border-color=#00f0ff
+background-color={{ $t.bg }}ee
+text-color={{ $t.fg }}
+border-color={{ $t.accent }}
 border-size=1
 border-radius=0
 padding=10
@@ -11,5 +12,5 @@ default-timeout=6000
 layer=overlay
 
 [urgency=critical]
-border-color=#ff2b6d
+border-color={{ $t.accent2 }}
 default-timeout=0

@@ -6,7 +6,7 @@
   "spacing": 0,
   "modules-left": ["sway/workspaces", "sway/mode", "sway/scratchpad", "sway/window"],
   "modules-center": ["mpris"],
-  "modules-right": ["tray", "idle_inhibitor", "pulseaudio", "backlight", "bluetooth", "network", "custom/battery", "clock"],
+  "modules-right": ["tray", "idle_inhibitor", "pulseaudio", "backlight", "bluetooth", "network", "custom/battery", "clock", "custom/settings"],
 
   "sway/workspaces": { "disable-scroll": false, "all-outputs": false },
   "sway/mode": { "format": "[{}]" },
@@ -71,6 +71,12 @@
     "interval": 30,
     "on-click": "$HOME/.local/bin/power-profile next"
   },
+  "custom/settings": {
+    "format": "\udb81\udc93",
+    "tooltip-format": "settings (Super+,)",
+    "on-click": "$HOME/.local/bin/jerkarchy-settings"
+  },
+
   "clock": {
     "format": "{:%a %d %b %H:%M}",
     "tooltip-format": "<tt>{calendar}</tt>"
