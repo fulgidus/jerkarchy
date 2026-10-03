@@ -102,6 +102,23 @@ wall_menu() {
     done
 }
 
+kb_menu() {
+    while :; do
+        choice=$(printf '%s\n' \
+            "$I_KEYS  layout   $(get kb_layout)${TAB}layout" \
+            "$I_KEYS  variant  $(get kb_variant)${TAB}variant" \
+            "$I_KEYS  options  $(get kb_options)${TAB}options" \
+            "$I_BACK  back${TAB}back" | menu --prompt 'keyboard › ')
+        case "$choice" in
+            layout)  value_menu kb_layout layout us gb de fr es it it,us de,us fr,us us,ru ;;
+            variant) value_menu kb_variant variant none intl ,intl dvorak colemak ;;
+            options) value_menu kb_options options none grp:alt_shift_toggle grp:win_space_toggle caps:escape ctrl:nocaps ;;
+            back)    return ;;
+            *)       exit 0 ;;
+        esac
+    done
+}
+
 profile_menu() {
     cur=$("$bin/power-profile" get 2>/dev/null)
     choice=$({ for p in power-saver balanced performance; do printf '%s %s\t%s\n' "$(mark "$cur" "$p")" "$p" "$p"; done; back_row; } |
@@ -132,16 +149,19 @@ $I_AUDIO  audio${TAB}audio"
     command -v nwg-displays >/dev/null && rows="$rows
 $I_DISPLAY  displays${TAB}displays"
     rows="$rows
+$I_KEYS  keyboard   $(get kb_layout)${TAB}keyboard"
+    rows="$rows
 $I_NOTIFY  notifications${TAB}notify
 $I_KEYS  keybindings${TAB}keys
 $I_SESSION  session${TAB}session
 $I_INFO  about${TAB}about"
 
-    choice=$(printf '%s\n' "$rows" | menu --prompt 'settings › ' --lines 12)
+    choice=$(printf '%s\n' "$rows" | menu --prompt 'settings › ' --lines 14)
     case "$choice" in
         theme)    theme_menu ;;
         wall)     wall_menu ;;
         profile)  profile_menu ;;
+        keyboard) kb_menu ;;
         wifi)     exec "$bin/wifi-menu" ;;
         bt)       exec "$bin/bt-menu" ;;
         audio)    exec "$bin/audio-mixer" ;;

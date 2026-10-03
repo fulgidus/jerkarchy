@@ -17,10 +17,16 @@ include /etc/sway/config.d/*
 # ------------------------------------------------------------------
 # Input
 # ------------------------------------------------------------------
+# Layout: kb_layout / kb_variant / kb_options settings (jerkarchy-settings ›
+# keyboard, or jerkarchy-set). Defaults: us, no variant, no options.
 input type:keyboard {
-    xkb_layout it,us
-    xkb_variant ,intl
-    xkb_options grp:alt_shift_toggle
+    xkb_layout {{ .kb_layout }}
+{{- if .kb_variant }}
+    xkb_variant {{ .kb_variant }}
+{{- end }}
+{{- if .kb_options }}
+    xkb_options {{ .kb_options }}
+{{- end }}
     repeat_delay 250
     repeat_rate 35
 }
@@ -32,7 +38,7 @@ input type:touchpad {
 }
 focus_follows_mouse yes
 mouse_warping container
-seat * xcursor_theme sweet-cursors 24
+seat * xcursor_theme Adwaita 24
 
 # ------------------------------------------------------------------
 # Look
@@ -91,8 +97,8 @@ bindsym $mod+Ctrl+r reload
 bindsym $mod+t exec $term
 #: terminal (wezterm)
 bindsym $mod+Return exec $term
-#: browser (librewolf)
-bindsym $mod+w exec librewolf
+#: browser (librewolf, else $BROWSER)
+bindsym $mod+w exec $bin/open-browser
 #: editor (VSCodium, else Code - OSS)
 bindsym $mod+c exec $bin/open-editor
 #: file manager (thunar)

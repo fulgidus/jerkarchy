@@ -5,3 +5,6 @@ wall_contrast = 1.6
 wall_fps = 30
 wall_speed = 1.0
 wall_points = 140
+kb_layout = "us"
+kb_variant = ""
+kb_options = ""

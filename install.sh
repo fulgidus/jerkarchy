@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # jerkarchy installer. Yes, this is all of it.
-# curl -fsSL https://git.fulgid.us/fulgidus/jerkarchy/raw/branch/main/install.sh | bash
+# curl -fsSL https://raw.githubusercontent.com/fulgidus/jerkarchy/main/install.sh | bash
 set -euo pipefail
 
-REPO=${JERKARCHY_REPO:-https://git.fulgid.us/fulgidus/jerkarchy.git}
+REPO=${JERKARCHY_REPO:-https://github.com/fulgidus/jerkarchy.git}  # public mirror of main
 SRC=${JERKARCHY_SRC:-$HOME/.local/share/jerkarchy}
 
 say() { printf '\033[1;96m::\033[0m %s\n' "$*"; }
@@ -13,7 +13,7 @@ command -v pacman >/dev/null || { echo "jerkarchy needs an Arch-based system." >
 
 PKGS=(
   sway swaybg swayidle swaylock autotiling xorg-xwayland xdg-desktop-portal-wlr xdg-desktop-portal-gtk
-  waybar fuzzel mako nwg-drawer polkit-gnome
+  waybar fuzzel mako nwg-drawer polkit-gnome thunar
   wezterm fish starship ttf-jetbrains-mono-nerd
   grim slurp wl-clipboard cliphist jq libnotify
   pipewire pipewire-pulse wireplumber playerctl brightnessctl wiremix power-profiles-daemon

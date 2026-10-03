@@ -18,10 +18,11 @@ jerkarchy is an opinionated desktop setup for Arch-based systems, built on
 ## Install
 
 ```sh
-curl -fsSL https://git.fulgid.us/fulgidus/jerkarchy/raw/branch/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/fulgidus/jerkarchy/main/install.sh | bash
 ```
 
-(While the repo is private, clone it and run `./install.sh` instead.)
+Or clone it and run `./install.sh`. Releases:
+[github.com/fulgidus/jerkarchy/releases](https://github.com/fulgidus/jerkarchy/releases).
 
 That's it. That's the product. It installs some packages, runs
 [chezmoi](https://www.chezmoi.io/), and builds one small Zig tool. No ISO, no
@@ -77,9 +78,9 @@ entries and their sources, and decide for yourself.
 - This repo was vibe-coded with an AI assistant from one of the labs pledging
   tokens to the Omacom Foundation. We know. That's the joke, and also the
   point: the tooling isn't the moat. Anyone can do this.
-- It's mirrored to **GitHub** (Microsoft, also on the list) purely to burn
-  their CI minutes. The source of truth is
-  [git.fulgid.us](https://git.fulgid.us/fulgidus/jerkarchy).
+- The public copy, the CI and the website live on **GitHub** (Microsoft,
+  also on the list), mostly to burn their CI minutes. The source of truth is
+  a self-hosted Forgejo; GitHub gets a mirror of `main`.
 - It runs on Linux, which Intel, Google, Red Hat, AMD and Meta co-develop. You
   can't escape everything. You can stop paying for flags.
 
