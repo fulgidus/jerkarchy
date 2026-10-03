@@ -29,6 +29,22 @@ Goal: stay current without babysitting; hear about it only when it breaks.
    on failed scheduled runs; the job also opens a GitHub issue with the
    failing step and log excerpt.
 
+## Related project: fashware audit CLI
+
+A separate project (name TBD), not part of this repo: source on
+git.fulgid.us, mirrored to GitHub, published independently on the AUR.
+Planned after v0.1.0.
+
+- CLI (Zig preferred): audit a package/repo, or the whole installed system,
+  on three axes (adjacency, governance, controversy) with sources.
+- pacman hook: informs on install, never blocks.
+- Own verdict database (tier, sources, date, verified/reported), versioned and
+  updatable separately from the code.
+- The two third-party lists are **fetched live and cached, never bundled**
+  (their redistribution licence is unclear).
+- jerkarchy consumes it: `install.sh` installs it, CI runs it over
+  jerkarchy's own package list.
+
 ## Later / maybe
 
 - Per-project dev shells via Nix — if ever, use **Lix** (community fork,
