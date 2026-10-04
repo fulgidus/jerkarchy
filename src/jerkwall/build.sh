@@ -10,7 +10,10 @@ for p in wlr-layer-shell-unstable-v1 xdg-shell; do
 done
 # -target x86_64-linux-gnu: zig's linker can't handle the .sframe relocations
 # in this system's crt1.o; use zig's bundled glibc crt instead.
-${ZIG:-zig} build-exe main.zig gen/*.c -Igen -I/usr/include -L/usr/lib \
-    -target x86_64-linux-gnu -lc -lwayland-client -lwayland-egl -lEGL -lGLESv2 -O ReleaseFast -femit-bin=jerkwall
+# Module flags (-O, -I, C sources) apply to the next -M; the shared title font
+# lives in src/common.
+${ZIG:-zig} build-exe -target x86_64-linux-gnu -O ReleaseFast -Igen -I/usr/include gen/*.c \
+    --dep font -Mroot=main.zig -O ReleaseFast -Mfont=../common/font5x7.zig \
+    -L/usr/lib -lc -lwayland-client -lwayland-egl -lEGL -lGLESv2 -femit-bin=jerkwall
 install -m755 jerkwall "$HOME/.local/bin/"
 echo "installed ~/.local/bin/jerkwall"

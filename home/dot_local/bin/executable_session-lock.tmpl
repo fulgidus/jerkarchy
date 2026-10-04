@@ -15,6 +15,7 @@ fi
 
 # The screensaver would keep rendering behind the lock: stop it.
 pkill -f "^$HOME/.local/bin/jerkwall --mode saver"
+pkill -x jerksaver
 
 dir="${XDG_RUNTIME_DIR:-/tmp}/jerkwall-lock"
 set --

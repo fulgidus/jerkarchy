@@ -61,7 +61,8 @@ works if the thing actually works — so quality rules below are strict.
 home/             dotfiles (chezmoi naming: dot_, executable_, private_, empty_, *.tmpl)
 src/<tool>/       source of compiled helpers (Zig) + build.sh; binaries are never committed
                   (sway-binds: binding list; jerkwall: live Delaunay wallpaper and
-                  screensaver; jerkslide: workspace slide)
+                  screensaver; jerkslide: workspace slide; jerksaver: terminal
+                  screensavers; common/: shared Zig modules, e.g. the title font)
 install.sh        the whole installer; keep it short and readable
 SNAPSHOT          Arch Linux Archive date (YYYY-MM-DD) that builds install from
 ci/check.sh       all automated checks (local + GitHub Actions)
@@ -246,7 +247,10 @@ live; they change.
 - **Lock, login, screensaver look like the desktop:** the same card (square,
   theme colours, accent top border, accent clock) over the wallpaper — gtklock
   (`~/.config/gtklock`), nwg-hello on greetd (`greeter-sync` →
-  `/var/lib/jerkarchy/greeter`), jerkwall `--mode saver`.
+  `/var/lib/jerkarchy/greeter`), jerkwall `--mode saver`. Screensavers
+  (`saver_mode`: wallpaper or jerksaver's terminal modes) all show the
+  `saver_title` in the 5×7 block font with the time; procedural, no
+  third-party art.
 - **Bar popups must look like the bar**: fuzzel drop-downs anchored top-right
   under the bar, styled by `home/dot_config/fuzzel/bar-menu.ini`
   (`wifi-menu`, `bt-menu` are the reference). No centered generic windows
@@ -268,6 +272,10 @@ live; they change.
   with `-target x86_64-linux-gnu`: Zig's linker can't handle the `.sframe`
   relocations in this system's `crt1.o`.
 - Each tool has a `build.sh` that builds and installs into `~/.local/bin`.
+- Shared code lives in `src/common/` and is passed as a module:
+  `--dep font -Mroot=main.zig -Mfont=../common/font5x7.zig`. Module flags
+  (`-O`, `-I`, C sources) apply to the **next** `-M`: put them before
+  `-Mroot` (an `-O` after it silently gave a 12 MB debug build).
 
 ## 9. README and other prose
 

@@ -46,8 +46,8 @@ CFG
 fi
 chezmoi apply
 
-say "building Zig helpers (sway-binds, jerkwall, jerkslide)"
-for tool in sway-binds jerkwall jerkslide; do ZIG=/usr/bin/zig "$SRC/src/$tool/build.sh"; done
+say "building Zig helpers (sway-binds, jerkwall, jerkslide, jerksaver)"
+for tool in sway-binds jerkwall jerkslide jerksaver; do ZIG=/usr/bin/zig "$SRC/src/$tool/build.sh"; done
 
 say "login screen (greetd + nwg-hello, themed like the lock screen)"
 # The greeter runs as another user and can't read your home: its files live

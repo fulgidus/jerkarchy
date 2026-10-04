@@ -9,6 +9,6 @@ lock={{ .lock_min }}
 pkill -x swayidle
 set -- -w
 [ "$saver" -gt 0 ] && set -- "$@" timeout $((saver * 60)) "$bin/screensaver" \
-    resume "pkill -f '^$bin/jerkwall --mode saver'"
+    resume "pkill -f '^$bin/jerkwall --mode saver'; pkill -x jerksaver"
 [ "$lock" -gt 0 ] && set -- "$@" timeout $((lock * 60)) "$bin/session-lock"
 exec swayidle "$@" before-sleep "$bin/session-lock"

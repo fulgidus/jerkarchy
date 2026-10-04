@@ -64,6 +64,7 @@ client.urgent           {{ $t.accent2 }}  {{ $t.bg }}  {{ $t.fg_bright }}  {{ $t
 for_window [app_id="sway-help"] floating enable, resize set 1100 800, move position center
 for_window [app_id="tui-float"] floating enable, resize set 900 600, move position center
 for_window [app_id="blueman-manager"] floating enable
+for_window [app_id="jerkarchy-saver"] fullscreen enable global, border none
 for_window [app_id="audio-mixer"] floating enable, border pixel 1, sticky enable
 for_window [window_role="pop-up"] floating enable
 for_window [window_type="dialog"] floating enable
@@ -199,6 +200,10 @@ bindsym $mod+Alt+6 move container to workspace number 6
 bindsym $mod+Alt+7 move container to workspace number 7
 bindsym $mod+Alt+8 move container to workspace number 8
 bindsym $mod+Alt+9 move container to workspace number 9
+#: next workspace (touchpad, slides)
+bindgesture swipe:4:left exec $bin/sway-ws focus next
+#: previous workspace (touchpad, slides)
+bindgesture swipe:4:right exec $bin/sway-ws focus prev
 # Relative workspaces work like Hyprland's workspace +1/-1: sway-ws goes to
 # number N±1 and creates it if needed, so you can keep walking into new ones.
 #: previous workspace (N-1)
