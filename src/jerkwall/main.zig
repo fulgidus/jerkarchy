@@ -671,6 +671,26 @@ fn drawFrame(px: []u32, w: usize, h: usize, verts: *std.ArrayList(V), tris: *std
     }
 }
 
+/// Write XRGB8888 pixels as a binary PPM (P6).
+fn writePpm(path: [*:0]const u8, px: []const u32, w: usize, h: usize) !void {
+    const f = c.fopen(path, "wb") orelse return error.OpenFailed;
+    defer _ = c.fclose(f);
+    var hdr: [64]u8 = undefined;
+    const head = std.fmt.bufPrint(&hdr, "P6\n{d} {d}\n255\n", .{ w, h }) catch unreachable;
+    if (c.fwrite(head.ptr, 1, head.len, f) != head.len) return error.WriteFailed;
+    var row = try gpa.alloc(u8, w * 3);
+    defer gpa.free(row);
+    for (0..h) |y| {
+        for (0..w) |x| {
+            const p = px[y * w + x];
+            row[x * 3] = @truncate(p >> 16);
+            row[x * 3 + 1] = @truncate(p >> 8);
+            row[x * 3 + 2] = @truncate(p);
+        }
+        if (c.fwrite(row.ptr, 1, row.len, f) != row.len) return error.WriteFailed;
+    }
+}
+
 /// Write XRGB8888 pixels as an 8-bit RGB PNG (zlib "stored" blocks: no
 /// compression, but tiny code and valid for every decoder).
 fn writePng(path: [*:0]const u8, px: []const u32, w: usize, h: usize) !void {
@@ -950,7 +970,8 @@ pub fn main(init: std.process.Init.Minimal) !void {
             // (negative = past). For previews and tests.
             frame_offset = std.fmt.parseFloat(f64, v) catch usage();
         } else if (std.mem.eql(u8, k, "--frame")) {
-            // --frame W H FILE: render the frame for "now" to a PNG and exit.
+            // --frame W H FILE: render the frame for "now" to a PNG (or a PPM,
+            // if FILE ends in .ppm) and exit.
             if (i + 3 >= argv.len) usage();
             frame_w = std.fmt.parseInt(usize, v, 10) catch usage();
             frame_h = std.fmt.parseInt(usize, std.mem.span(argv[i + 2]), 10) catch usage();
@@ -1013,7 +1034,9 @@ pub fn main(init: std.process.Init.Minimal) !void {
             return;
         }
         try drawFrame(px, frame_w, frame_h, &verts, &tris);
-        writePng(path, px, frame_w, frame_h) catch |err| fatal("writing {s}: {s}", .{ path, @errorName(err) });
+        // A .ppm path gets a PPM (jerkslide reads those; cheaper than PNG).
+        const write = if (std.mem.endsWith(u8, std.mem.span(path), ".ppm")) &writePpm else &writePng;
+        write(path, px, frame_w, frame_h) catch |err| fatal("writing {s}: {s}", .{ path, @errorName(err) });
         return;
     }
 
