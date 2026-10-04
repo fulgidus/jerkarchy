@@ -3,6 +3,26 @@
 Releases are tagged on `main` (gitflow, see AGENTS.md). The release workflow
 publishes the section for each version as its release notes.
 
+## v0.1.1
+
+- **Screensaver:** after 5 idle minutes (lock at 10; both settings, 0 = off),
+  with a big title (`saver_title`) and the time. Modes (`saver_mode`): the
+  live wallpaper, or terminal art drawn by jerksaver (Zig): matrix, bonsai,
+  city, galaxy, planets, three-body orbits (figure-eight and
+  Šuvakov–Dmitrašinović solutions, integrated live), random. Any input ends it.
+- **Workspace slide:** both workspaces move (jerkslide, Zig), the bar stays
+  put; Super+1–9, Super+Ctrl+←/→ and 4-finger touchpad swipes. Optional
+  SwayFX fade on top. Settings › animations.
+- **Lock and login screens** that look like the desktop: gtklock and greetd +
+  nwg-hello, same card, theme colours, live wallpaper behind the login.
+  install.sh enables greetd only when no display manager is set.
+- **Settings:** grouped menu (look / system / help), arrow-key navigation
+  (→ open, ← back), keyboard layout, screensaver, animations; title input
+  with a live character counter (jerkprompt, Zig).
+- **Fixes:** logout under sway (it asked uwsm first and did nothing); theme
+  changes from the bar's gear now restart the wallpaper; flag themes no
+  longer decorate the bar; About shows the real version.
+
 ## v0.1.0
 
 First release: it installs, on a fresh Arch, unattended, and the VM test
