@@ -83,6 +83,12 @@ AGENTS.md         this file (CLAUDE.md → symlink)
   (`.tmpl`, `{{ .chezmoi.homeDir }}`, `{{ if stat … }}`) or stays out.
 - No assets of unclear license (wallpapers, fonts, icons). If it isn't ours or
   clearly redistributable, it doesn't go in.
+- The source checkout lives in `~/Documents/jerkarchy` (install.sh's default;
+  older installs are moved from `~/.local/share/jerkarchy`).
+- **SwayFX is the default compositor where the repos carry it** (CachyOS),
+  plain sway otherwise; `install.sh --no-swayfx` / `JERKARCHY_SWAYFX=0` opts
+  out at install, the `fx` setting at runtime. Everything must work on plain
+  sway (the VM test runs plain Arch, so plain sway).
 - Scope is the **sway** setup. River, Hyprland, caelestia, and the user's
   shell config are out of scope.
 

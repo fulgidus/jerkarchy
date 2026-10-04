@@ -348,6 +348,26 @@ err = "#af3029"
 ansi = ["#fffcf0", "#af3029", "#66800b", "#ad8301", "#205ea6", "#a02f6f", "#24837b", "#6f6e69", "#b7b5ac", "#af3029", "#66800b", "#ad8301", "#205ea6", "#a02f6f", "#24837b", "#100f0f"]
 
 
+# ---- parody: our own palette, no Omarchy files (see README for the funding).
+[themes.matte-billionaire]
+title = "Matte Billionaire (parody)"
+source = "jerkarchy: Omarchy's Matte Black, now in Founding Patron gold"
+light = false
+bg = "#0d0c0a"
+bg_alt = "#15130f"
+border = "#2e2a20"
+fg = "#d8d2c0"
+fg_bright = "#f3ecd6"
+fg_dim = "#9a9078"
+fg_mute = "#5e5746"
+accent = "#d4af37"
+accent2 = "#85bb65"
+ok = "#85bb65"
+warn = "#e8c35a"
+err = "#c0392b"
+ansi = ["#1a1814", "#c0392b", "#85bb65", "#d4af37", "#6b8fb3", "#a67c52", "#8fb3a6", "#d8d2c0", "#4a4438", "#e0574a", "#a3d185", "#f0cd5c", "#8eb0d3", "#c9a072", "#b0d3c6", "#f3ecd6"]
+wall = ["#d4af37", "#85bb65", "#a67c52"]
+
 # ---- flags: palettes from each flag's Wikimedia Commons SVG. UI roles
 # use the flag colours, lightened only where text needs contrast; `wall`
 # (the wallpaper gradient) uses them exactly.

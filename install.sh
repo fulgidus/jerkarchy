@@ -1,10 +1,24 @@
 #!/usr/bin/env bash
 # jerkarchy installer. Yes, this is all of it.
 # curl -fsSL https://raw.githubusercontent.com/fulgidus/jerkarchy/main/install.sh | bash
+#   … | bash -s -- --no-swayfx     plain sway even where SwayFX is available
+# Environment: JERKARCHY_SRC (source checkout; default ~/Documents/jerkarchy),
+# JERKARCHY_REPO (clone URL), JERKARCHY_SWAYFX=0 (same as --no-swayfx).
 set -euo pipefail
 
 REPO=${JERKARCHY_REPO:-https://github.com/fulgidus/jerkarchy.git}  # public mirror of main
-SRC=${JERKARCHY_SRC:-$HOME/.local/share/jerkarchy}
+# The source checkout lives in your Documents folder (it's yours to read and
+# hack on), not hidden in ~/.local/share as older versions did.
+docs=$(xdg-user-dir DOCUMENTS 2>/dev/null || true)
+[ -n "$docs" ] && [ "$docs" != "$HOME" ] || docs=$HOME/Documents
+SRC=${JERKARCHY_SRC:-$docs/jerkarchy}
+SWAYFX=${JERKARCHY_SWAYFX:-1}
+for arg in "$@"; do
+    case $arg in
+        --no-swayfx) SWAYFX=0 ;;
+        *) echo "unknown option: $arg (see the top of install.sh)" >&2; exit 2 ;;
+    esac
+done
 
 say() { printf '\033[1;96m::\033[0m %s\n' "$*"; }
 
@@ -12,7 +26,7 @@ command -v pacman >/dev/null || { echo "jerkarchy needs an Arch-based system." >
 [ "$(id -u)" -ne 0 ] || { echo "run as your user, not root (sudo is used when needed)." >&2; exit 1; }
 
 PKGS=(
-  sway swaybg swayidle swaylock autotiling xorg-xwayland xdg-desktop-portal-wlr xdg-desktop-portal-gtk
+  swaybg swayidle swaylock autotiling xorg-xwayland xdg-desktop-portal-wlr xdg-desktop-portal-gtk
   waybar fuzzel mako nwg-drawer polkit-gnome thunar
   gtklock gtklock-powerbar-module gtklock-playerctl-module gtklock-userinfo-module
   greetd nwg-hello
@@ -23,19 +37,41 @@ PKGS=(
   chezmoi git zig
 )
 
+# Compositor: SwayFX (sway with animations; same config) where the repos
+# carry it (CachyOS does, plain Arch only has it in the AUR), plain sway
+# otherwise or when opted out. An installed SwayFX already provides sway.
+if [ "$SWAYFX" = 1 ] && pacman -Q swayfx >/dev/null 2>&1; then
+    say "compositor: SwayFX (installed)"
+elif [ "$SWAYFX" = 1 ] && pacman -Si swayfx >/dev/null 2>&1; then
+    say "compositor: SwayFX (opt out: --no-swayfx)"; PKGS+=(swayfx)
+else
+    say "compositor: sway"; PKGS+=(sway)
+fi
+
 say "installing packages (sudo)"
-sudo pacman -S --needed --noconfirm "${PKGS[@]}"
+# --ask 4: if switching between sway and SwayFX, replace the other one.
+sudo pacman -S --needed --noconfirm --ask 4 "${PKGS[@]}"
 
 say "enabling services"
 sudo systemctl enable --now NetworkManager bluetooth power-profiles-daemon
+
+# Older installs kept the source in ~/.local/share/jerkarchy: move it.
+old=$HOME/.local/share/jerkarchy
+if [ -z "${JERKARCHY_SRC:-}" ] && [ -d "$old/.git" ] && [ ! -e "$SRC" ]; then
+    say "moving the source from $old to $SRC"
+    mkdir -p "$(dirname "$SRC")" && mv "$old" "$SRC"
+fi
 
 say "fetching dotfiles into $SRC"
 if [ -d "$SRC/.git" ]; then git -C "$SRC" pull --ff-only; else git clone --depth 1 "$REPO" "$SRC"; fi
 
 say "applying dotfiles (chezmoi)"
 mkdir -p "$HOME/.config/chezmoi"
-# Keep an existing config (it holds your settings) on re-install.
-if [ ! -f "$HOME/.config/chezmoi/chezmoi.toml" ]; then
+# Keep an existing config (it holds your settings) on re-install; just point
+# it at the source.
+if [ -f "$HOME/.config/chezmoi/chezmoi.toml" ]; then
+    sed -i "s|^sourceDir = .*|sourceDir = \"$SRC\"|" "$HOME/.config/chezmoi/chezmoi.toml"
+else
     cat > "$HOME/.config/chezmoi/chezmoi.toml" <<CFG
 sourceDir = "$SRC"
 
