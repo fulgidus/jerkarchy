@@ -27,6 +27,7 @@ I_BT=$(printf '\363\260\202\257')        # U+F00AF bluetooth
 I_AUDIO=$(printf '\363\260\225\276')     # U+F057E volume-high
 I_DISPLAY=$(printf '\363\260\215\271')   # U+F0379 monitor
 I_KEYS=$(printf '\363\260\214\214')      # U+F030C keyboard
+I_UPDATE=$(printf '\363\260\232\260')    # U+F06B0 update
 I_SAVER=$(printf '\363\260\215\271')     # U+F0379 monitor
 I_FX=$(printf '\363\260\244\225')        # U+F0915 transition
 I_SESSION=$(printf '\363\260\220\245')   # U+F0425 power
@@ -236,6 +237,7 @@ $I_AUDIO  audio${TAB}audio
 $I_NOTIFY  notifications${TAB}notify
 ── help ──${TAB}hdr
 $I_KEYS  keybindings${TAB}keys
+$I_UPDATE  update      $(cat "$(chezmoi source-path 2>/dev/null)/../VERSION" 2>/dev/null | sed 's/^/v/')${TAB}update
 $I_SESSION  session${TAB}session
 $I_INFO  about${TAB}about"
 
@@ -253,6 +255,9 @@ $I_INFO  about${TAB}about"
         audio)    exec "$bin/audio-mixer" ;;
         displays) exec nwg-displays ;;
         notify)   exec "$bin/notify-menu" ;;
+        update)   # a terminal: it may ask for the sudo password and shows the changelog
+                  exec wezterm start --always-new-process --class jerkarchy-update -- \
+                      sh -c '"$HOME/.local/bin/jerkarchy-update"; printf "\n:: press Enter to close "; read -r _' ;;
         keys)     exec "$HOME/.config/sway/show-bindings" ;;
         session)  exec "$bin/session-menu" ;;
         about)    about; exit 0 ;;

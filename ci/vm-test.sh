@@ -12,6 +12,7 @@
 #                 egl-headless + virtio-vga-gl modules). With a GPU, install.sh
 #                 builds SwayFX from the AUR; without one it installs plain sway.
 #   VM_SWAYFX=0   install with --no-swayfx (plain sway even with a GPU)
+#   VM_WITH=dev,docker   install profiles too (and check them)
 #
 # Needs: qemu-system-x86_64, qemu-img, KVM, python3, ssh, curl. ~4 GB RAM, ~6 GB disk.
 # Cache: ${XDG_CACHE_HOME:-~/.cache}/jerkarchy-vm (base image; run dirs, removed
@@ -122,7 +123,7 @@ scp -q -i "$RUN/key" -P "$SSH_PORT" -o StrictHostKeyChecking=no -o UserKnownHost
 # --- the actual test: install.sh, unattended ------------------------------------
 say "running install.sh in the VM (log: $OUT/install.log)"
 # Run detached so a network reconfiguration (NetworkManager taking over) can't kill it.
-vm "nohup env JERKARCHY_REPO=\$HOME/repo.bundle JERKARCHY_SWAYFX=${VM_SWAYFX:-1} bash ./install.sh >install.log 2>&1; echo \$? >install.rc" \
+vm "nohup env JERKARCHY_REPO=\$HOME/repo.bundle JERKARCHY_SWAYFX=${VM_SWAYFX:-1} bash ./install.sh ${VM_WITH:+--with $VM_WITH} >install.log 2>&1; echo \$? >install.rc" \
     </dev/null >/dev/null 2>&1 &
 for _ in $(seq 1 240); do
     sleep 5
@@ -172,6 +173,11 @@ check "autotiling running"            "pgrep -f autotiling"
 check "jerkwall (wallpaper) running"  "pgrep -x jerkwall"
 check "sway-binds renders the list"   "test \$(~/.local/bin/sway-binds | grep -c '▌') -ge 5"
 check "chezmoi: no drift"             "test -z \"\$(chezmoi diff)\""
+case ",${VM_WITH:-}," in *,dev,*)
+    check "profile dev: helix + neovim installed" "pacman -Q helix neovim >/dev/null" ;; esac
+case ",${VM_WITH:-}," in *,docker,*)
+    check "profile docker: socket enabled, user in docker group" "systemctl is-enabled docker.socket >/dev/null && id -nG | grep -qw docker" ;; esac
+[ -n "${VM_WITH:-}" ] && check "install choices saved" "grep -q 'PROFILES_SAVED=' ~/.config/jerkarchy/install.conf"
 check "bar-battery prints JSON"       "\$HOME/.local/bin/bar-battery | python3 -c 'import json,sys; json.load(sys.stdin)'"
 vm "$SWAYENV grim /tmp/shot.png" && scp -q -i "$RUN/key" -P "$SSH_PORT" -o StrictHostKeyChecking=no \
     -o UserKnownHostsFile=/dev/null arch@127.0.0.1:/tmp/shot.png "$OUT/screenshot.png" 2>/dev/null \

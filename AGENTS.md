@@ -121,8 +121,20 @@ live; they change.
   CachyOS repo on CachyOS). Accepted as test-only tooling despite a hit: QEMU
   (Red Hat → IBM), github-cli (GitHub → Microsoft; CI release step only).
   Firefox (and so LibreWolf) is a lineage hit (Brendan Eich, Mozilla
-  co-founder, is on the weird-guys list): the user's choice, never installed
-  by jerkarchy.
+  co-founder, is on the weird-guys list).
+- **Profiles** (`install.sh --with …`, stackable) follow the user's rule:
+  flagged mainstream apps are offered **next to** their clean alternative so
+  people can migrate on their own time; install.sh names each flagged app,
+  why, and the alternative; `--clean-only` skips them. Hits recorded so far:
+  Neovim (maintainer Justin M. Keyes, weird-guys), Code-OSS (Microsoft),
+  Emacs (rms, weird-guys), LibreOffice (fork of Oracle's OpenOffice.org),
+  Thunderbird (Mozilla), LibreWolf (Firefox fork), Vivaldi (Chromium:
+  Google), Audacity (Muse Group's 2021 telemetry/privacy rug-pull),
+  Blender (funded by NVIDIA, Microsoft, AMD, Intel, Facebook, Dell, Adobe).
+  No browser engine is clean (Gecko: Mozilla, Blink: Google, WebKit: Apple).
+  Clean: Helix, Vim, Docker, Gnumeric, AbiWord, zathura, aerc, Steam, Lutris,
+  Wine, GameMode, MangoHud, GIMP, Shotcut, Inkscape, Tenacity, KiCad,
+  PlatformIO, arduino-cli. Search the lists case-insensitively ("NeoVim").
 - **Check that a program exists before wiring it in** (`command -v`). Do not
   copy app names from old configs (this repo already shipped dead binds to
   `codium`, `blueman`, `pavucontrol`). If something isn't installed, either
