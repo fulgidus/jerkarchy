@@ -46,14 +46,14 @@ CFG
 fi
 chezmoi apply
 
-say "building Zig helpers (sway-binds, jerkwall)"
-for tool in sway-binds jerkwall; do ZIG=/usr/bin/zig "$SRC/src/$tool/build.sh"; done
+say "building Zig helpers (sway-binds, jerkwall, jerkslide)"
+for tool in sway-binds jerkwall jerkslide; do ZIG=/usr/bin/zig "$SRC/src/$tool/build.sh"; done
 
 say "login screen (greetd + nwg-hello, themed like the lock screen)"
 # The greeter runs as another user and can't read your home: its files live
 # in /var/lib/jerkarchy/greeter (yours, so greeter-sync needs no sudo).
 sudo install -d -o "$(id -un)" -m 755 /var/lib/jerkarchy/greeter
-for f in nwg-hello.css nwg-hello.json; do
+for f in nwg-hello.css nwg-hello.json jerkarchy.glade; do
     sudo ln -sfn "/var/lib/jerkarchy/greeter/$f" "/etc/nwg-hello/$f"
 done
 # Only replace greetd's stock config (the agreety one), never a custom one.

@@ -10,6 +10,19 @@ src="${XDG_CONFIG_HOME:-$HOME/.config}"
 [ -d "$dst" ] && [ -w "$dst" ] || exit 0
 install -m 644 "$src/jerkarchy/greeter/nwg-hello.css" "$src/jerkarchy/greeter/nwg-hello.json" \
     "$src/jerkarchy/greeter/sway-config" "$dst/"
+# nwg-hello's layout docks the form to one side; ours centres it as a card
+# (like the lock screen). Generated from the installed template, not copied.
+tpl=$(ls /usr/lib/python3*/site-packages/nwg_hello/template.glade 2>/dev/null | head -1)
+if [ -n "$tpl" ]; then
+    # The template's one vexpand stretches the form to full height: drop it,
+    # then centre the wrapper both ways.
+    sed -e 's|<property name="vexpand">True</property>|<property name="vexpand">False</property>|' \
+        -e '/id="form-wrapper">/a\
+            <property name="halign">center</property>\
+            <property name="valign">center</property>\
+            <property name="hexpand">True</property>\
+            <property name="vexpand">True</property>' "$tpl" > "$dst/jerkarchy.glade"
+fi
 mkdir -p "$dst/jerkwall"
 install -m 644 "$src/jerkwall/config" "$dst/jerkwall/config"
 mkdir -p "$dst/bin"

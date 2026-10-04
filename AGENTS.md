@@ -60,7 +60,8 @@ works if the thing actually works — so quality rules below are strict.
 .chezmoiroot      → "home": chezmoi's source lives in home/
 home/             dotfiles (chezmoi naming: dot_, executable_, private_, empty_, *.tmpl)
 src/<tool>/       source of compiled helpers (Zig) + build.sh; binaries are never committed
-                  (sway-binds: binding list; jerkwall: live Delaunay wallpaper)
+                  (sway-binds: binding list; jerkwall: live Delaunay wallpaper and
+                  screensaver; jerkslide: workspace slide)
 install.sh        the whole installer; keep it short and readable
 SNAPSHOT          Arch Linux Archive date (YYYY-MM-DD) that builds install from
 ci/check.sh       all automated checks (local + GitHub Actions)
@@ -109,7 +110,7 @@ live; they change.
   (Intel), Ghostty, CachyOS (Framework sponsorship), mise (Omacom Foundation).
   Clean — sway/wlroots, waybar, fuzzel, mako, nwg-drawer, autotiling, wezterm,
   starship, swaylock, blueman, pwvucontrol (not in Arch repos), wiremix, shellcheck,
-  COSMIC, thunar (XFCE), SwayFX (optional: not in Arch's repos; AUR, or the
+  COSMIC, thunar (XFCE), gtklock, greetd, nwg-hello, SwayFX (optional: not in Arch's repos; AUR, or the
   CachyOS repo on CachyOS). Accepted as test-only tooling despite a hit: QEMU
   (Red Hat → IBM), github-cli (GitHub → Microsoft; CI release step only).
   Firefox (and so LibreWolf) is a lineage hit (Brendan Eich, Mozilla
@@ -238,9 +239,14 @@ live; they change.
   **cyan `#00f0ff`** (focus/accent), **magenta `#ff2b6d`** (alerts,
   discharging, performance), green `#00ff9f` (charging, power-saver), yellow
   `#ffcc00` (caffeine, warnings). Font: JetBrainsMono Nerd Font. Square
-  corners, 1–2 px borders (all themes). Animations only through SwayFX, when
-  it's the running compositor (`sway-fx`, setting `fx_animation_ms`); plain
-  sway, the default, has none and must keep working unchanged.
+  corners, 1–2 px borders (all themes). Animations: the workspace slide
+  (jerkslide via `ws-go`, setting `slide_ms`) works on plain sway; SwayFX's
+  fade (`sway-fx`, `fx_animation_ms`) only when SwayFX runs. Plain sway, the
+  default, must keep working unchanged.
+- **Lock, login, screensaver look like the desktop:** the same card (square,
+  theme colours, accent top border, accent clock) over the wallpaper — gtklock
+  (`~/.config/gtklock`), nwg-hello on greetd (`greeter-sync` →
+  `/var/lib/jerkarchy/greeter`), jerkwall `--mode saver`.
 - **Bar popups must look like the bar**: fuzzel drop-downs anchored top-right
   under the bar, styled by `home/dot_config/fuzzel/bar-menu.ini`
   (`wifi-menu`, `bt-menu` are the reference). No centered generic windows

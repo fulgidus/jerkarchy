@@ -162,7 +162,7 @@ if jset kb_layout it,us >/dev/null 2>&1 && jset kb_variant ,intl >/dev/null 2>&1
     ok "keyboard settings render into the sway config (none clears)"
 else bad "keyboard settings"; fi
 if jset fx_animation_ms 400 >/dev/null 2>&1 && [ "$(jset get fx_animation_ms)" = 400 ]; then ok "fx_animation_ms set"; else bad "fx_animation_ms set"; fi
-for args in "fx_animation_ms 2001" "fx_animation_ms fast" "theme nope" "wall_fps 0" "wall_fps 2.5" "wall_contrast 9" "bogus 1" "kb_layout IT" "kb_layout it;us" "kb_options a\$b"; do
+for args in "slide_ms 1001" "saver_min 999" "fx_animation_ms 2001" "fx_animation_ms fast" "theme nope" "wall_fps 0" "wall_fps 2.5" "wall_contrast 9" "bogus 1" "kb_layout IT" "kb_layout it;us" "kb_options a\$b"; do
     # shellcheck disable=SC2086
     if jset $args >/dev/null 2>&1; then bad "accepts '$args'"; else ok "rejects '$args'"; fi
 done
@@ -287,6 +287,34 @@ else
         fi
     else
         bad "build vkbd"; sed 's/^/        /' "$TMP/err" | tail -5
+    fi
+fi
+
+step "zig: jerkslide (workspace slide)"
+if [ "$QUICK" = 1 ]; then
+    skip "--quick"
+elif need zig && need wayland-scanner; then
+    js="$TMP/js-gen"; mkdir -p "$js"
+    if (cd src/jerkslide && for p in wlr-layer-shell-unstable-v1 xdg-shell viewporter; do
+            wayland-scanner client-header "protocol/$p.xml" "$js/$p-client-protocol.h" &&
+            wayland-scanner private-code "protocol/$p.xml" "$js/$p-protocol.c" || exit 1; done &&
+        zig build-exe main.zig "$js"/*.c -I"$js" -I/usr/include -L/usr/lib \
+            -target x86_64-linux-gnu -lc -lwayland-client -O ReleaseFast -femit-bin="$TMP/jerkslide") >"$TMP/zig" 2>&1; then
+        ok "build"
+        [ -n "${CI_OUT:-}" ] && mkdir -p "$CI_OUT" && cp "$TMP/jerkslide" "$CI_OUT/"
+        printf 'output * resolution 320x180 scale 1\n' >"$TMP/slide.conf"
+        if read -r wd _ spid < <(ci/headless-sway.sh "$TMP/slide.conf" 30 2>/dev/null); then
+            { printf 'P6\n320 180\n255\n'; head -c $((320 * 180 * 3)) /dev/zero; } >"$TMP/shot.ppm"
+            out=$(WAYLAND_DISPLAY=$wd timeout 5 "$TMP/jerkslide" HEADLESS-1 left 100 <"$TMP/shot.ppm" 2>"$TMP/err")
+            if [ "$out" = ready ]; then ok "overlay up, slides, exits"; else bad "jerkslide run"; sed 's/^/        /' "$TMP/err"; fi
+            if WAYLAND_DISPLAY=$wd timeout 5 "$TMP/jerkslide" HEADLESS-1 left 100 </dev/null >/dev/null 2>&1; then
+                bad "rejects garbage input"; else ok "rejects garbage input"; fi
+            kill "$spid" 2>/dev/null
+        else
+            skip "headless sway didn't start here"
+        fi
+    else
+        bad "build"; sed 's/^/        /' "$TMP/zig"
     fi
 fi
 

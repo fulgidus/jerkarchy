@@ -11,7 +11,7 @@
   "gtk-icon-theme": "",
   "gtk-cursor-theme": "Adwaita",
   "prefer-dark-theme": true,
-  "template-name": "",
+  "template-name": "jerkarchy.glade",
   "time-format": "%H:%M",
   "date-format": "%A %d %B",
   "layer": "top",

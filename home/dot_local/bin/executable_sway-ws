@@ -16,5 +16,5 @@ if [ "$dir" = next ]; then n=$((cur + 1)); else n=$((cur - 1)); fi
 if [ "$action" = move ]; then
     swaymsg -q "move container to workspace number $n, workspace number $n"
 else
-    swaymsg -q "workspace number $n"
+    exec "$HOME/.local/bin/ws-go" "$n"   # with the slide transition
 fi

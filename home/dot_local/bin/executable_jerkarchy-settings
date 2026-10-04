@@ -124,9 +124,26 @@ kb_menu() {
 # Animations exist only on SwayFX; say so instead of offering a dead knob.
 fx_label() {
     case "$(sway --version 2>/dev/null)" in
-        *[Ss]way[Ff][Xx]*) ms=$(get fx_animation_ms); [ "$ms" = 0 ] && echo off || echo "$ms ms" ;;
+        *[Ss]way[Ff][Xx]*) ms_label fx_animation_ms ;;
         *) echo "needs SwayFX" ;;
     esac
+}
+
+ms_label() { m=$(get "$1"); [ "$m" = 0 ] && echo off || echo "${m}ms"; }
+
+anim_menu() {
+    while :; do
+        choice=$(printf '%s\n' \
+            "$I_FX  workspace slide  $(ms_label slide_ms)${TAB}slide" \
+            "$I_FX  SwayFX fade      $(fx_label)${TAB}fade" \
+            "$I_BACK  back${TAB}back" | menu --prompt 'animations › ')
+        case "$choice" in
+            slide) value_menu slide_ms "slide (ms)" 0 150 220 300 400 ;;
+            fade)  value_menu fx_animation_ms "fade (ms)" 0 150 250 400 ;;
+            back)  return ;;
+            *)     exit 0 ;;
+        esac
+    done
 }
 
 min_label() { m=$(get "$1"); [ "$m" = 0 ] && echo off || echo "${m}m"; }
@@ -180,7 +197,7 @@ $I_DISPLAY  displays${TAB}displays"
     rows="$rows
 $I_KEYS  keyboard   $(get kb_layout)${TAB}keyboard"
     rows="$rows
-$I_FX  animations $(fx_label)${TAB}fx
+$I_FX  animations slide $(ms_label slide_ms) · fade $(fx_label)${TAB}fx
 $I_SAVER  screensaver $(min_label saver_min) · lock $(min_label lock_min)${TAB}saver"
     rows="$rows
 $I_NOTIFY  notifications${TAB}notify
@@ -195,7 +212,7 @@ $I_INFO  about${TAB}about"
         profile)  profile_menu ;;
         keyboard) kb_menu ;;
         saver)    saver_menu ;;
-        fx)       value_menu fx_animation_ms "animations (ms)" 0 150 250 400 ;;
+        fx)       anim_menu ;;
         wifi)     exec "$bin/wifi-menu" ;;
         bt)       exec "$bin/bt-menu" ;;
         audio)    exec "$bin/audio-mixer" ;;
