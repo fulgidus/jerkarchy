@@ -1,0 +1,38 @@
+{{- $t := index .themes .theme -}}
+#!/bin/sh
+# text-prompt PROMPT MAX ALLOWED INITIAL [HINT] — one line of text input for
+# the settings menu, styled like its drop-downs (same font and colours, under
+# the bar at the right), with a live "n left" counter: jerkprompt in a small
+# terminal. Characters not in ALLOWED don't type; input stops at MAX.
+# Prints the text and exits 0 on Enter (even if empty); exits 1 on Esc.
+bin="$HOME/.local/bin"
+prompt=${1:?usage: text-prompt PROMPT MAX ALLOWED INITIAL [HINT]} max=$2 allowed=$3 initial=$4
+hint=${5:-enter: save · esc: cancel}
+out="${XDG_RUNTIME_DIR:-/tmp}/text-prompt.$$"
+rm -f "$out"
+
+wezterm --config initial_cols=52 --config initial_rows=2 --config enable_tab_bar=false \
+    start --always-new-process --class jerkarchy-prompt -- \
+    "$bin/jerkprompt" --out "$out" --prompt "$prompt" --max "$max" --allow "$allowed" \
+    --initial "$initial" --hint "$hint" \
+    --accent {{ $t.accent | trimPrefix "#" }} --fg {{ $t.fg_bright | trimPrefix "#" }} --dim {{ $t.fg_dim | trimPrefix "#" }} &
+term=$!
+
+# Place it like the bar menus: top-right, just under the bar, on this output.
+i=0
+while [ $i -lt 40 ]; do
+    i=$((i + 1))
+    geo=$(swaymsg -t get_tree | jq -r '.. | objects | select(.app_id? == "jerkarchy-prompt") | .rect.width' | head -1)
+    if [ -n "$geo" ]; then
+        read -r x y <<EOT
+$(swaymsg -t get_workspaces -r | jq -r --argjson w "$geo" '.[] | select(.focused) | "\(.rect.x + .rect.width - $w - 6) \(.rect.y + 4)"')
+EOT
+        swaymsg -q "[app_id=jerkarchy-prompt] move absolute position $x $y"
+        break
+    fi
+    sleep 0.05
+done
+wait "$term"
+[ -e "$out" ] || exit 1
+cat "$out"; echo
+rm -f "$out"

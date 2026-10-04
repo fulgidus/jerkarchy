@@ -74,7 +74,7 @@
   "custom/settings": {
     "format": "\udb81\udc93",
     "tooltip-format": "settings (Super+,)",
-    "on-click": "$HOME/.local/bin/jerkarchy-settings"
+    "on-click": "swaymsg -q exec $HOME/.local/bin/jerkarchy-settings"
   },
 
   "clock": {

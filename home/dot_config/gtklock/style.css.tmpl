@@ -50,13 +50,4 @@ button {
 }
 button:hover { color: {{ $t.bg }}; background: {{ $t.accent }}; border-color: {{ $t.accent }}; }
 label { color: {{ $t.fg }}; }
-{{- if and (hasKey $t "group") (eq $t.group "flags") }}
-{{- $w := $t.wall }}{{ $n := len $w }}
-/* Flag themes: the flag under the card. */
-#window-box {
-  border-bottom: none;
-  background-image: linear-gradient(to top, transparent 0, transparent 5px, {{ $t.bg }} 5px),
-    linear-gradient(to right{{ range $i, $c := $w }}, {{ $c }} {{ div (mul $i 100) $n }}%, {{ $c }} {{ div (mul (add $i 1) 100) $n }}%{{ end }});
-  background-color: transparent;
-}
-{{- end }}
+
