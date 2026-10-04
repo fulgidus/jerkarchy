@@ -59,7 +59,8 @@ if ! echo "$IMAGE_SHA256  $CACHE/$IMAGE" | sha256sum -c --status 2>/dev/null; th
     echo "$IMAGE_SHA256  $CACHE/$IMAGE.part" | sha256sum -c --status || die "checksum mismatch"
     mv "$CACHE/$IMAGE.part" "$CACHE/$IMAGE"
 fi
-qemu-img create -q -f qcow2 -F qcow2 -b "$CACHE/$IMAGE" "$RUN/disk.qcow2" 20G
+# 40G: all seven profiles together download ~16 GB of packages.
+qemu-img create -q -f qcow2 -F qcow2 -b "$CACHE/$IMAGE" "$RUN/disk.qcow2" "${VM_DISK:-40G}"
 
 # --- cloud-init over HTTP (NoCloud via SMBIOS; no ISO tooling needed) ----------
 ssh-keygen -q -t ed25519 -N '' -f "$RUN/key"
