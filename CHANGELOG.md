@@ -3,6 +3,15 @@
 Releases are tagged on `main` (gitflow, see AGENTS.md). The release workflow
 publishes the section for each version as its release notes.
 
+## v0.1.4
+
+- **Screenshots and screensaver GIFs on every release:** CI renders all
+  themes (bar, wallpaper, terminal, settings menu) and records every
+  screensaver mode, attaches them to the release, and publishes a
+  **gallery** on the site.
+- Releases now run shellcheck before tagging (v0.1.3's first CI run caught
+  a warning and a root-only dry run; both fixed in v0.1.3).
+
 ## v0.1.3
 
 - **Install profiles**, any combination: `install.sh --with
