@@ -37,20 +37,45 @@ PKGS=(
   chezmoi git zig
 )
 
-# Compositor: SwayFX (sway with animations; same config) where the repos
-# carry it (CachyOS does, plain Arch only has it in the AUR), plain sway
-# otherwise or when opted out. An installed SwayFX already provides sway.
+# Compositor: SwayFX (sway with animations; same config) unless opted out.
+# From the repos where they carry it (CachyOS), else built from the AUR
+# (plain Arch), falling back to plain sway if that fails. SwayFX renders
+# with GLES only: without a GPU render node it would be a black screen, so
+# GPU-less machines (VMs, servers) get plain sway. An installed SwayFX
+# already provides sway.
+BUILD_SWAYFX=0
 if [ "$SWAYFX" = 1 ] && pacman -Q swayfx >/dev/null 2>&1; then
     say "compositor: SwayFX (installed)"
+elif [ "$SWAYFX" = 1 ] && ! ls /dev/dri/renderD* >/dev/null 2>&1; then
+    say "compositor: sway (SwayFX needs a GPU; none found)"; PKGS+=(sway)
 elif [ "$SWAYFX" = 1 ] && pacman -Si swayfx >/dev/null 2>&1; then
     say "compositor: SwayFX (opt out: --no-swayfx)"; PKGS+=(swayfx)
+elif [ "$SWAYFX" = 1 ]; then
+    say "compositor: SwayFX, built from the AUR below (opt out: --no-swayfx)"; BUILD_SWAYFX=1
 else
     say "compositor: sway"; PKGS+=(sway)
 fi
 
+# SwayFX from the AUR, built as you with makepkg. The PKGBUILD asks for
+# "scenefx0.5", a name nothing on plain Arch provides: extra's scenefx is
+# exactly that library (0.5), so point the dependency at it.
+build_swayfx() {
+    sudo pacman -S --needed --noconfirm base-devel || return 1
+    local tmp; tmp=$(mktemp -d)
+    git clone --depth 1 https://aur.archlinux.org/swayfx.git "$tmp/swayfx" || return 1
+    sed -i 's/"scenefx0\.5"/"scenefx"/' "$tmp/swayfx/PKGBUILD"
+    (cd "$tmp/swayfx" && makepkg -si --noconfirm --needed) || return 1
+    rm -rf "$tmp"
+}
+
 say "installing packages (sudo)"
 # --ask 4: if switching between sway and SwayFX, replace the other one.
 sudo pacman -S --needed --noconfirm --ask 4 "${PKGS[@]}"
+
+if [ "$BUILD_SWAYFX" = 1 ] && ! build_swayfx; then
+    say "SwayFX build failed: installing plain sway instead"
+    sudo pacman -S --needed --noconfirm sway
+fi
 
 say "enabling services"
 sudo systemctl enable --now NetworkManager bluetooth power-profiles-daemon
