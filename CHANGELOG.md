@@ -3,6 +3,23 @@
 Releases are tagged on `main` (gitflow, see AGENTS.md). The release workflow
 publishes the section for each version as its release notes.
 
+## v0.1.3
+
+- **Install profiles**, any combination: `install.sh --with
+  dev,docker,office,gaming,browsers,creator,electronics`. Fashware-flagged
+  apps (Neovim, Code-OSS, Emacs, LibreOffice, Thunderbird, LibreWolf,
+  Vivaldi, Audacity, Blender) come next to their clean alternative, named
+  with the reason at the end of the install; `--clean-only` skips them.
+  Gaming enables Arch's multilib; docker enables its socket and group;
+  electronics adds you to `uucp` for serial ports.
+- **Updates:** `jerkarchy-update` (or Settings › help › update) pulls the
+  source, shows what's new from the changelog, and re-runs the installer.
+  Install choices (profiles, `--no-swayfx`, `--clean-only`) are remembered
+  in `~/.config/jerkarchy/install.conf`.
+- **SwayFX on plain Arch**, built from the AUR when there's a GPU; plain sway
+  if there isn't or the build fails.
+- Super+W falls back to Vivaldi when LibreWolf isn't installed.
+
 ## v0.1.2
 
 - **Matte Billionaire (parody):** Omarchy's Matte Black, in Founding Patron

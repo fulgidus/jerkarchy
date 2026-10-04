@@ -21,6 +21,8 @@ jerkarchy is an opinionated desktop setup for Arch-based systems, built on
 curl -fsSL https://raw.githubusercontent.com/fulgidus/jerkarchy/main/install.sh | bash
 ```
 
+Profiles stack: `… | bash -s -- --with dev,docker,office,gaming,browsers,creator,electronics`. Apps on the fashware lists are installed next to a clean alternative and named as such; `--clean-only` skips them. Update later with `jerkarchy-update` (or Settings › update).
+
 Or clone it and run `./install.sh` (`--no-swayfx` for plain sway where SwayFX is available). The source ends up in `~/Documents/jerkarchy`. Releases:
 [github.com/fulgidus/jerkarchy/releases](https://github.com/fulgidus/jerkarchy/releases).
 

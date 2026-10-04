@@ -1,0 +1,32 @@
+#!/bin/sh
+# jerkarchy-update — update jerkarchy from its git remote (GitHub's main for
+# a normal install; whatever the checkout tracks otherwise). Fast-forwards
+# the source, shows what's new from CHANGELOG.md, then re-runs the new
+# install.sh: new packages (sudo), dotfiles, Zig helpers — keeping your
+# settings and install choices (profiles, --no-swayfx; ~/.config/jerkarchy).
+# Settings › help › update runs it in a terminal.
+set -e
+die() { echo "jerkarchy-update: $*" >&2; exit 1; }
+
+src=$(chezmoi source-path 2>/dev/null) || die "chezmoi has no source (install jerkarchy first)"
+repo=${src%/home}
+cd "$repo"
+[ -z "$(git status --porcelain)" ] || die "$repo has local changes: commit or stash them first"
+git rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1 || die "$(git branch --show-current) tracks no remote branch"
+
+old=$(git rev-parse HEAD)
+oldv=$(cat VERSION 2>/dev/null || echo "?")
+echo ":: checking $(git rev-parse --abbrev-ref '@{u}') for updates"
+git fetch --quiet
+if [ "$(git rev-parse '@{u}')" = "$old" ]; then
+    echo ":: up to date (v$oldv)"
+    exit 0
+fi
+git merge --ff-only --quiet '@{u}' || die "can't fast-forward (your branch has diverged)"
+newv=$(cat VERSION)
+echo ":: jerkarchy v$oldv → v$newv"
+# What's new: the changelog's sections above the one we had.
+awk -v stop="## v$oldv" '$0 == stop { exit } /^## v/ { show = 1 } show' CHANGELOG.md
+
+echo ":: installing (sudo may ask for your password)"
+exec env JERKARCHY_SRC="$repo" bash ./install.sh

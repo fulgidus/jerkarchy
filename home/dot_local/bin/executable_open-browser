@@ -1,7 +1,8 @@
 #!/bin/sh
-# open-browser — Super+W. LibreWolf (AUR) if installed, else $BROWSER, else
-# say so: jerkarchy installs no browser (Firefox has a fashware-list hit, see
+# open-browser — Super+W. LibreWolf, else Vivaldi (browsers profile), else $BROWSER, else
+# say so: browsers are opt-in (every engine has a fashware-list hit, see
 # AGENTS.md §3), and a bind that silently does nothing is worse than a note.
 command -v librewolf >/dev/null && exec librewolf "$@"
+command -v vivaldi >/dev/null && exec vivaldi "$@"
 [ -n "${BROWSER:-}" ] && command -v "$BROWSER" >/dev/null && exec "$BROWSER" "$@"
-exec notify-send -a jerkarchy "No browser installed" "Install one (e.g. librewolf from the AUR) or set \$BROWSER."
+exec notify-send -a jerkarchy "No browser installed" "Re-run install.sh --with browsers (LibreWolf, Vivaldi) or set \$BROWSER."
