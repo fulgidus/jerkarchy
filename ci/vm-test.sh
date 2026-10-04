@@ -59,7 +59,8 @@ if ! echo "$IMAGE_SHA256  $CACHE/$IMAGE" | sha256sum -c --status 2>/dev/null; th
     echo "$IMAGE_SHA256  $CACHE/$IMAGE.part" | sha256sum -c --status || die "checksum mismatch"
     mv "$CACHE/$IMAGE.part" "$CACHE/$IMAGE"
 fi
-qemu-img create -q -f qcow2 -F qcow2 -b "$CACHE/$IMAGE" "$RUN/disk.qcow2" 20G
+# 40G: all seven profiles together download ~16 GB of packages.
+qemu-img create -q -f qcow2 -F qcow2 -b "$CACHE/$IMAGE" "$RUN/disk.qcow2" "${VM_DISK:-40G}"
 
 # --- cloud-init over HTTP (NoCloud via SMBIOS; no ISO tooling needed) ----------
 ssh-keygen -q -t ed25519 -N '' -f "$RUN/key"
@@ -177,6 +178,16 @@ case ",${VM_WITH:-}," in *,dev,*)
     check "profile dev: helix + neovim installed" "pacman -Q helix neovim >/dev/null" ;; esac
 case ",${VM_WITH:-}," in *,docker,*)
     check "profile docker: socket enabled, user in docker group" "systemctl is-enabled docker.socket >/dev/null && id -nG | grep -qw docker" ;; esac
+case ",${VM_WITH:-}," in *,creator,*)
+    check "profile creator: gimp, shotcut, inkscape, tenacity, audacity, blender" "pacman -Q gimp shotcut inkscape tenacity audacity blender >/dev/null && command -v blender" ;; esac
+case ",${VM_WITH:-}," in *,office,*)
+    check "profile office: libreoffice, gnumeric, abiword, zathura, aerc, thunderbird" "pacman -Q libreoffice-fresh gnumeric abiword zathura aerc thunderbird >/dev/null" ;; esac
+case ",${VM_WITH:-}," in *,browsers,*)
+    check "profile browsers: librewolf + vivaldi" "command -v librewolf && command -v vivaldi" ;; esac
+case ",${VM_WITH:-}," in *,gaming,*)
+    check "profile gaming: multilib on, steam installed" "grep -q '^\[multilib\]' /etc/pacman.conf && pacman -Q steam >/dev/null" ;; esac
+case ",${VM_WITH:-}," in *,electronics,*)
+    check "profile electronics: kicad, platformio, arduino-cli; user in uucp" "pacman -Q kicad platformio-core arduino-cli >/dev/null && id -nG | grep -qw uucp" ;; esac
 [ -n "${VM_WITH:-}" ] && check "install choices saved" "grep -q 'PROFILES_SAVED=' ~/.config/jerkarchy/install.conf"
 check "bar-battery prints JSON"       "\$HOME/.local/bin/bar-battery | python3 -c 'import json,sys; json.load(sys.stdin)'"
 vm "$SWAYENV grim /tmp/shot.png" && scp -q -i "$RUN/key" -P "$SSH_PORT" -o StrictHostKeyChecking=no \
