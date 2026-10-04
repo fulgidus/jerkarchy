@@ -161,7 +161,8 @@ if jset kb_layout it,us >/dev/null 2>&1 && jset kb_variant ,intl >/dev/null 2>&1
         ! grep -q xkb_options "$JH/.config/sway/config"; then
     ok "keyboard settings render into the sway config (none clears)"
 else bad "keyboard settings"; fi
-for args in "theme nope" "wall_fps 0" "wall_fps 2.5" "wall_contrast 9" "bogus 1" "kb_layout IT" "kb_layout it;us" "kb_options a\$b"; do
+if jset fx_animation_ms 400 >/dev/null 2>&1 && [ "$(jset get fx_animation_ms)" = 400 ]; then ok "fx_animation_ms set"; else bad "fx_animation_ms set"; fi
+for args in "fx_animation_ms 2001" "fx_animation_ms fast" "theme nope" "wall_fps 0" "wall_fps 2.5" "wall_contrast 9" "bogus 1" "kb_layout IT" "kb_layout it;us" "kb_options a\$b"; do
     # shellcheck disable=SC2086
     if jset $args >/dev/null 2>&1; then bad "accepts '$args'"; else ok "rejects '$args'"; fi
 done

@@ -109,7 +109,8 @@ live; they change.
   (Intel), Ghostty, CachyOS (Framework sponsorship), mise (Omacom Foundation).
   Clean — sway/wlroots, waybar, fuzzel, mako, nwg-drawer, autotiling, wezterm,
   starship, swaylock, blueman, pwvucontrol (not in Arch repos), wiremix, shellcheck,
-  COSMIC, thunar (XFCE). Accepted as test-only tooling despite a hit: QEMU
+  COSMIC, thunar (XFCE), SwayFX (optional: not in Arch's repos; AUR, or the
+  CachyOS repo on CachyOS). Accepted as test-only tooling despite a hit: QEMU
   (Red Hat → IBM), github-cli (GitHub → Microsoft; CI release step only).
   Firefox (and so LibreWolf) is a lineage hit (Brendan Eich, Mozilla
   co-founder, is on the weird-guys list): the user's choice, never installed
@@ -237,7 +238,9 @@ live; they change.
   **cyan `#00f0ff`** (focus/accent), **magenta `#ff2b6d`** (alerts,
   discharging, performance), green `#00ff9f` (charging, power-saver), yellow
   `#ffcc00` (caffeine, warnings). Font: JetBrainsMono Nerd Font. Square
-  corners, 1–2 px borders, no animations (all themes).
+  corners, 1–2 px borders (all themes). Animations only through SwayFX, when
+  it's the running compositor (`sway-fx`, setting `fx_animation_ms`); plain
+  sway, the default, has none and must keep working unchanged.
 - **Bar popups must look like the bar**: fuzzel drop-downs anchored top-right
   under the bar, styled by `home/dot_config/fuzzel/bar-menu.ini`
   (`wifi-menu`, `bt-menu` are the reference). No centered generic windows
