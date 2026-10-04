@@ -2,12 +2,14 @@
 # Log out by asking the compositor to exit cleanly, so SDDM's helper sees a normal
 # session end and brings the greeter back. Never use `loginctl terminate-*`:
 # it kills sddm-helper too, and SDDM then leaves a black screen with no greeter.
-if uwsm check is-active >/dev/null 2>&1; then
+# sway first: `uwsm check is-active` also succeeds outside uwsm sessions, and
+# `uwsm stop` then does nothing (logout used to hang there under sway).
+if [ -n "$SWAYSOCK" ]; then
+    exec swaymsg exit
+elif uwsm check is-active >/dev/null 2>&1; then
     exec uwsm stop
 elif [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then
     exec hyprctl dispatch 'hl.dsp.exit()'
-elif [ -n "$SWAYSOCK" ]; then
-    exec swaymsg exit
 elif pgrep -u "$(id -u)" -x river >/dev/null; then
     exec riverctl exit
 fi

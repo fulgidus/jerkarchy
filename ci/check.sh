@@ -261,6 +261,35 @@ elif need zig && need wayland-scanner; then
     fi
 fi
 
+step "screensaver (headless sway + virtual keyboard)"
+if [ "$QUICK" = 1 ]; then
+    skip "--quick"
+elif [ ! -x "$TMP/jerkwall" ]; then
+    skip "jerkwall wasn't built"
+else
+    vk="$TMP/vkbd-gen"; mkdir -p "$vk"
+    glibc=$(ldd --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+$')
+    case "$glibc" in 2.4[4-9]|2.[5-9]*) glibc=2.43 ;; esac  # newest zig can target
+    if wayland-scanner client-header ci/vkbd/protocol/virtual-keyboard-unstable-v1.xml "$vk/virtual-keyboard-unstable-v1-client-protocol.h" &&
+            wayland-scanner private-code ci/vkbd/protocol/virtual-keyboard-unstable-v1.xml "$vk/virtual-keyboard-unstable-v1-protocol.c" &&
+            (cd ci/vkbd && zig build-exe main.zig "$vk"/*.c -I"$vk" -I/usr/include -L/usr/lib -target "x86_64-linux-gnu${glibc:+.$glibc}" \
+                -lc -lwayland-client -lxkbcommon -O ReleaseSafe -femit-bin="$TMP/vkbd") >"$TMP/err" 2>&1; then
+        printf 'output * resolution 640x360 scale 1\n' >"$TMP/saver.conf"
+        if read -r wd _ spid < <(ci/headless-sway.sh "$TMP/saver.conf" 30 2>/dev/null); then
+            WAYLAND_DISPLAY=$wd HOME="$TMP" "$TMP/jerkwall" --mode saver --fps 10 >/dev/null 2>&1 & jp=$!
+            sleep 1.5
+            if kill -0 "$jp" 2>/dev/null; then ok "saver starts"; else bad "saver starts"; fi
+            WAYLAND_DISPLAY=$wd "$TMP/vkbd" >/dev/null 2>&1; sleep 0.5
+            if kill -0 "$jp" 2>/dev/null; then bad "a key press dismisses the saver"; kill "$jp"; else ok "a key press dismisses the saver"; fi
+            kill "$spid" 2>/dev/null
+        else
+            skip "headless sway didn't start here"
+        fi
+    else
+        bad "build vkbd"; sed 's/^/        /' "$TMP/err" | tail -5
+    fi
+fi
+
 step "zig: sway-binds"
 if [ "$QUICK" = 1 ]; then
     skip "--quick"

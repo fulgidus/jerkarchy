@@ -13,10 +13,11 @@
 #       wall_points (20–600), kb_layout (us | it,us | …), kb_variant (,intl | …),
 #       kb_options (grp:alt_shift_toggle | …). "none" clears kb_variant/kb_options.
 #       fx_animation_ms (0–2000; SwayFX only, 0 = off).
+#       saver_min, lock_min (idle minutes before screensaver / lock, 0–240, 0 = off).
 set -e
 
 CFG="${XDG_CONFIG_HOME:-$HOME/.config}/chezmoi/chezmoi.toml"
-KEYS="theme wall_contrast wall_fps wall_speed wall_points kb_layout kb_variant kb_options fx_animation_ms"
+KEYS="theme wall_contrast wall_fps wall_speed wall_points kb_layout kb_variant kb_options fx_animation_ms saver_min lock_min"
 
 die() { echo "jerkarchy-set: $*" >&2; [ -t 2 ] || notify-send -a jerkarchy -u critical "jerkarchy-set" "$*" 2>/dev/null || true; exit 1; }
 
@@ -97,6 +98,7 @@ case "$key" in
         [ "$val" = none ] && val=""
         [ -z "$val" ] || printf '%s' "$val" | grep -qE '^[a-z0-9_:,+-]+$' || die "$key: letters, digits and _ : , + - only"
         toml="\"$val\"" ;;
+    saver_min|lock_min) printf '%s' "$val" | grep -qE '^[0-9]+$' && in_range "$val" 0 240 || die "$key: minutes 0–240 (0 = off)"; toml=$val ;;
     fx_animation_ms) printf '%s' "$val" | grep -qE '^[0-9]+$' && in_range "$val" 0 2000 || die "fx_animation_ms: integer 0–2000"; toml=$val ;;
     *) die "unknown key '$key' (keys: $KEYS)" ;;
 esac
@@ -116,7 +118,7 @@ if [ -n "${SWAYSOCK:-}" ] && swaymsg -t get_version >/dev/null 2>&1; then
     case "$key" in
         theme) reload_theme ;;
         wall_*) reload_wall ;;
-        kb_*|fx_*) swaymsg -q reload ;;
+        kb_*|fx_*|saver_min|lock_min) swaymsg -q reload ;;
     esac
 fi
 echo "$key = $val"

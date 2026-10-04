@@ -13,6 +13,9 @@ if ! command -v swaylock >/dev/null; then
         -init-color 0x1a2a40 -input-color 0x{{ $t.accent | trimPrefix "#" }} -fail-color 0x{{ $t.accent2 | trimPrefix "#" }}
 fi
 
+# The screensaver would keep rendering behind the lock: stop it.
+pkill -f "^$HOME/.local/bin/jerkwall --mode saver"
+
 dir="${XDG_RUNTIME_DIR:-/tmp}/jerkwall-lock"
 set --
 jw="$HOME/.local/bin/jerkwall"  # full path: sway-spawned processes may lack ~/.local/bin in PATH

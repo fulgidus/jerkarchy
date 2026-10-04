@@ -308,4 +308,5 @@ exec mako
 exec /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec wl-paste --watch cliphist store
 exec $bin/drawer-daemon sway
-exec swayidle -w timeout 600 $bin/session-lock before-sleep $bin/session-lock
+# Idle: screensaver, then lock (saver_min / lock_min); restarted on reload.
+exec_always $bin/idle-daemon

@@ -9,3 +9,5 @@ kb_layout = "us"
 kb_variant = ""
 kb_options = ""
 fx_animation_ms = 250
+saver_min = 5
+lock_min = 10
