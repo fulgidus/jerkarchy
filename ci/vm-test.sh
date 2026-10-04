@@ -8,6 +8,11 @@
 #
 #   ci/vm-test.sh [--keep]     --keep: leave the VM running at the end (ssh hint printed)
 #
+#   VM_GPU=0      no virtual GPU (default: a virgl GPU when QEMU has the
+#                 egl-headless + virtio-vga-gl modules). With a GPU, install.sh
+#                 builds SwayFX from the AUR; without one it installs plain sway.
+#   VM_SWAYFX=0   install with --no-swayfx (plain sway even with a GPU)
+#
 # Needs: qemu-system-x86_64, qemu-img, KVM, python3, ssh, curl. ~4 GB RAM, ~6 GB disk.
 # Cache: ${XDG_CACHE_HOME:-~/.cache}/jerkarchy-vm (base image; run dirs, removed
 # afterwards unless --keep). Logs: $VM_TEST_OUT (default: the run dir).
@@ -72,11 +77,20 @@ python3 -m http.server "$HTTP_PORT" --bind 127.0.0.1 --directory "$RUN/seed" >"$
 HTTP_PID=$!
 
 say "booting VM (ssh on localhost:$SSH_PORT)"
-qemu-system-x86_64 -enable-kvm -cpu host -smp 4 -m 4096 -nographic \
+# A virgl GPU (rendered by the host's GPU) when available: SwayFX needs GLES.
+GPU_ARGS=(-vga none -display none)
+if [ "${VM_GPU:-1}" = 1 ] && qemu-system-x86_64 -device help 2>/dev/null | grep -q '"virtio-vga-gl"' &&
+        qemu-system-x86_64 -display help 2>/dev/null | grep -q egl-headless; then
+    GPU_ARGS=(-vga none -device virtio-vga-gl -display egl-headless)
+    say "virtual GPU: virgl"
+else
+    say "virtual GPU: none (SwayFX path not covered; see VM_GPU above)"
+fi
+qemu-system-x86_64 -enable-kvm -cpu host -smp 4 -m 4096 "${GPU_ARGS[@]}" \
     -drive "file=$RUN/disk.qcow2,if=virtio" \
     -nic "user,model=virtio-net-pci,hostfwd=tcp:127.0.0.1:$SSH_PORT-:22" \
     -smbios "type=1,serial=ds=nocloud;s=http://10.0.2.2:$HTTP_PORT/" \
-    -serial "file:$RUN/serial.log" -monitor none -display none >/dev/null 2>&1 &
+    -serial "file:$RUN/serial.log" -monitor none >/dev/null 2>&1 &
 QEMU_PID=$!
 
 SSH=(ssh -q -i "$RUN/key" -p "$SSH_PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
@@ -108,7 +122,7 @@ scp -q -i "$RUN/key" -P "$SSH_PORT" -o StrictHostKeyChecking=no -o UserKnownHost
 # --- the actual test: install.sh, unattended ------------------------------------
 say "running install.sh in the VM (log: $OUT/install.log)"
 # Run detached so a network reconfiguration (NetworkManager taking over) can't kill it.
-vm 'nohup env JERKARCHY_REPO=$HOME/repo.bundle bash ./install.sh >install.log 2>&1; echo $? >install.rc' \
+vm "nohup env JERKARCHY_REPO=\$HOME/repo.bundle JERKARCHY_SWAYFX=${VM_SWAYFX:-1} bash ./install.sh >install.log 2>&1; echo \$? >install.rc" \
     </dev/null >/dev/null 2>&1 &
 for _ in $(seq 1 240); do
     sleep 5
@@ -125,7 +139,9 @@ say "starting sway headless"
 # so user services (pipewire, portals, sway-session.target) behave as at login.
 vm 'export XDG_RUNTIME_DIR=/run/user/$(id -u) DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
     systemctl --user start pipewire.socket pipewire-pulse.socket wireplumber.service 2>/dev/null || true
-    nohup env WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 \
+    # GLES on the virtual GPU when there is one (SwayFX needs it), else pixman.
+    r=pixman; ls /dev/dri/renderD* >/dev/null 2>&1 && r=gles2
+    nohup env WLR_BACKENDS=headless WLR_RENDERER=$r WLR_LIBINPUT_NO_DEVICES=1 \
         sway >sway.log 2>&1 &' </dev/null >/dev/null 2>&1
 sleep 15
 
@@ -138,9 +154,15 @@ check() {  # check <description> <command run in the VM>; output kept on failure
     fi
 }
 SWAYENV='export XDG_RUNTIME_DIR=/run/user/$(id -u) DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus; export SWAYSOCK=$(ls $XDG_RUNTIME_DIR/sway-ipc.*.sock | head -1) WAYLAND_DISPLAY=wayland-1;'
+# What install.sh should have chosen: SwayFX with a GPU unless opted out.
+if [ "${GPU_ARGS[2]:-}" = -device ] && [ "${VM_SWAYFX:-1}" = 1 ]; then
+    check "compositor is SwayFX (AUR build)" "sway --version | grep -qi swayfx"
+else
+    check "compositor is plain sway"         "sway --version | grep -qv swayfx"
+fi
 check "sway is running"               "pgrep -x sway"
 check "sway answers IPC (1 output)"   "$SWAYENV swaymsg -t get_outputs -r | grep -q HEADLESS"
-check "config passes sway -C"         "WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 sway -C -c ~/.config/sway/config"
+check "config passes sway -C"         "r=pixman; ls /dev/dri/renderD* >/dev/null 2>&1 && r=gles2; WLR_BACKENDS=headless WLR_RENDERER=\$r WLR_LIBINPUT_NO_DEVICES=1 sway -C -c ~/.config/sway/config"
 check "Xwayland available"            "command -v Xwayland"
 check "PipeWire Pulse server up"      "$SWAYENV pactl info | grep -q 'Server Name: PulseAudio (on PipeWire'"
 check "waybar started"                "pgrep -x waybar"
