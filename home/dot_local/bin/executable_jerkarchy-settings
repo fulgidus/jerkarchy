@@ -188,9 +188,20 @@ profile_menu() {
 
 about() {
     src=$(chezmoi source-path 2>/dev/null)
-    ver=$(git -C "${src%/home}" describe --tags --always --dirty 2>/dev/null || echo unknown)
+    repo=${src%/home}
+    # "v0.1.0" on a release; past one: "v0.1.0 + 15 unreleased changes
+    # (develop, 7adb20e)" — git describe's v0.1.0-15-g7adb20e, spelled out.
+    d=$(git -C "$repo" describe --tags --dirty 2>/dev/null)
+    branch=$(git -C "$repo" branch --show-current 2>/dev/null)
+    case "$d" in
+        "") ver=unknown ;;
+        *-*-g*) tag=${d%%-*} rest=${d#*-}; n=${rest%%-*}; h=${rest#*-g}
+                ver="$tag + $n unreleased change$([ "$n" = 1 ] || echo s) (${branch:-detached}, ${h%-dirty})"
+                case "$d" in *-dirty) ver="$ver, with local edits" ;; esac ;;
+        *)      ver=$d ;;
+    esac
     notify-send -a jerkarchy "jerkarchy $ver" "theme: $(get theme)
-source: ${src%/home}
+source: $repo
 settings: jerkarchy-set (CLI) or this menu
 bindings: Super+H"
 }
