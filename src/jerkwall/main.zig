@@ -66,7 +66,7 @@ fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
 }
 
 fn usage() noreturn {
-    std.debug.print("usage: jerkwall [--fps N] [--points N] [--speed X] [--contrast X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB] [--stops RRGGBB,RRGGBB,...] [--at S] [--frame W H FILE.png]\n", .{});
+    std.debug.print("usage: jerkwall [--fps N] [--points N] [--speed X] [--contrast X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB] [--stops RRGGBB,RRGGBB,...] [--mode wallpaper|saver] [--at S] [--frame W H FILE.png]\n", .{});
     std.process.exit(2);
 }
 
@@ -350,6 +350,88 @@ fn fillTri(px: []u32, w: usize, h: usize, a: V, b: V, cc: V, color: u32) void {
 
 var compositor: ?*c.wl_compositor = null;
 var shm: ?*c.wl_shm = null;
+
+// --mode saver: the same scene as a screensaver. Overlay layer, keyboard
+// grabbed, cursor hidden; any key, click, scroll or real pointer movement
+// exits (after a short grace period, so the motion that started it doesn't).
+var saver = false;
+var saver_start: f64 = 0;
+var seat: ?*c.wl_seat = null;
+var pointer: ?*c.wl_pointer = null;
+var keyboard: ?*c.wl_keyboard = null;
+var ptr_x0: f64 = -1;
+var ptr_y0: f64 = -1;
+
+fn saverDismiss() void {
+    if (now() - saver_start < 0.8) return;
+    std.process.exit(0);
+}
+fn ptrEnter(_: ?*anyopaque, p: ?*c.wl_pointer, serial: u32, _: ?*c.wl_surface, _: c.wl_fixed_t, _: c.wl_fixed_t) callconv(.c) void {
+    c.wl_pointer_set_cursor(p, serial, null, 0, 0); // hide the cursor
+}
+fn ptrLeave(_: ?*anyopaque, _: ?*c.wl_pointer, _: u32, _: ?*c.wl_surface) callconv(.c) void {}
+fn ptrMotion(_: ?*anyopaque, _: ?*c.wl_pointer, _: u32, fx: c.wl_fixed_t, fy: c.wl_fixed_t) callconv(.c) void {
+    const x = c.wl_fixed_to_double(fx);
+    const y = c.wl_fixed_to_double(fy);
+    if (ptr_x0 < 0) {
+        ptr_x0 = x;
+        ptr_y0 = y;
+        return;
+    }
+    // A bumped desk isn't a user: require a real move.
+    if (@abs(x - ptr_x0) + @abs(y - ptr_y0) > 24) saverDismiss();
+}
+fn ptrButton(_: ?*anyopaque, _: ?*c.wl_pointer, _: u32, _: u32, _: u32, _: u32) callconv(.c) void {
+    saverDismiss();
+}
+fn ptrAxis(_: ?*anyopaque, _: ?*c.wl_pointer, _: u32, _: u32, _: c.wl_fixed_t) callconv(.c) void {
+    saverDismiss();
+}
+fn ptrFrame(_: ?*anyopaque, _: ?*c.wl_pointer) callconv(.c) void {}
+fn ptrAxisSource(_: ?*anyopaque, _: ?*c.wl_pointer, _: u32) callconv(.c) void {}
+fn ptrAxisStop(_: ?*anyopaque, _: ?*c.wl_pointer, _: u32, _: u32) callconv(.c) void {}
+fn ptrAxisDiscrete(_: ?*anyopaque, _: ?*c.wl_pointer, _: u32, _: i32) callconv(.c) void {}
+const pointer_listener = c.wl_pointer_listener{
+    .enter = ptrEnter,
+    .leave = ptrLeave,
+    .motion = ptrMotion,
+    .button = ptrButton,
+    .axis = ptrAxis,
+    .frame = ptrFrame,
+    .axis_source = ptrAxisSource,
+    .axis_stop = ptrAxisStop,
+    .axis_discrete = ptrAxisDiscrete,
+};
+fn kbKeymap(_: ?*anyopaque, _: ?*c.wl_keyboard, _: u32, fd: i32, _: u32) callconv(.c) void {
+    _ = c.close(fd);
+}
+fn kbEnter(_: ?*anyopaque, _: ?*c.wl_keyboard, _: u32, _: ?*c.wl_surface, _: [*c]c.wl_array) callconv(.c) void {}
+fn kbLeave(_: ?*anyopaque, _: ?*c.wl_keyboard, _: u32, _: ?*c.wl_surface) callconv(.c) void {}
+fn kbKey(_: ?*anyopaque, _: ?*c.wl_keyboard, _: u32, _: u32, _: u32, state: u32) callconv(.c) void {
+    if (state == c.WL_KEYBOARD_KEY_STATE_PRESSED) saverDismiss();
+}
+fn kbModifiers(_: ?*anyopaque, _: ?*c.wl_keyboard, _: u32, _: u32, _: u32, _: u32, _: u32) callconv(.c) void {}
+fn kbRepeat(_: ?*anyopaque, _: ?*c.wl_keyboard, _: i32, _: i32) callconv(.c) void {}
+const keyboard_listener = c.wl_keyboard_listener{
+    .keymap = kbKeymap,
+    .enter = kbEnter,
+    .leave = kbLeave,
+    .key = kbKey,
+    .modifiers = kbModifiers,
+    .repeat_info = kbRepeat,
+};
+fn seatCaps(_: ?*anyopaque, s_: ?*c.wl_seat, caps: u32) callconv(.c) void {
+    if (caps & c.WL_SEAT_CAPABILITY_POINTER != 0 and pointer == null) {
+        pointer = c.wl_seat_get_pointer(s_);
+        _ = c.wl_pointer_add_listener(pointer, &pointer_listener, null);
+    }
+    if (caps & c.WL_SEAT_CAPABILITY_KEYBOARD != 0 and keyboard == null) {
+        keyboard = c.wl_seat_get_keyboard(s_);
+        _ = c.wl_keyboard_add_listener(keyboard, &keyboard_listener, null);
+    }
+}
+fn seatName(_: ?*anyopaque, _: ?*c.wl_seat, _: [*c]const u8) callconv(.c) void {}
+const seat_listener = c.wl_seat_listener{ .capabilities = seatCaps, .name = seatName };
 var layer_shell: ?*c.zwlr_layer_shell_v1 = null;
 
 const Buffer = struct {
@@ -721,16 +803,21 @@ fn setupOutput(out: *Output) void {
     const comp = compositor orelse return;
     const shell = layer_shell orelse return;
     out.surface = c.wl_compositor_create_surface(comp);
-    // Input-transparent: an empty input region passes clicks to the desktop.
-    const region = c.wl_compositor_create_region(comp);
-    c.wl_surface_set_input_region(out.surface, region);
-    c.wl_region_destroy(region);
-    out.layer = c.zwlr_layer_shell_v1_get_layer_surface(shell, out.surface, out.wl_output, c.ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND, "wallpaper");
+    if (!saver) {
+        // Input-transparent: an empty input region passes clicks to the desktop.
+        const region = c.wl_compositor_create_region(comp);
+        c.wl_surface_set_input_region(out.surface, region);
+        c.wl_region_destroy(region);
+    }
+    out.layer = c.zwlr_layer_shell_v1_get_layer_surface(shell, out.surface, out.wl_output,
+        if (saver) c.ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY else c.ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND,
+        if (saver) "jerkwall-saver" else "wallpaper");
     _ = c.zwlr_layer_surface_v1_add_listener(out.layer, &layer_listener, out);
     c.zwlr_layer_surface_v1_set_anchor(out.layer, c.ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP | c.ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM |
         c.ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT | c.ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
     c.zwlr_layer_surface_v1_set_size(out.layer, 0, 0);
     c.zwlr_layer_surface_v1_set_exclusive_zone(out.layer, -1);
+    if (saver) c.zwlr_layer_surface_v1_set_keyboard_interactivity(out.layer, c.ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE);
     c.wl_surface_commit(out.surface);
 }
 
@@ -742,6 +829,9 @@ fn registryGlobal(_: ?*anyopaque, reg: ?*c.wl_registry, name: u32, iface: [*c]co
         shm = @ptrCast(c.wl_registry_bind(reg, name, &c.wl_shm_interface, 1));
     } else if (std.mem.eql(u8, i, "zwlr_layer_shell_v1")) {
         layer_shell = @ptrCast(c.wl_registry_bind(reg, name, &c.zwlr_layer_shell_v1_interface, @min(version, 4)));
+    } else if (saver and std.mem.eql(u8, i, "wl_seat") and seat == null) {
+        seat = @ptrCast(c.wl_registry_bind(reg, name, &c.wl_seat_interface, @min(version, 5)));
+        _ = c.wl_seat_add_listener(seat, &seat_listener, null);
     } else if (std.mem.eql(u8, i, "wl_output")) {
         const wo: *c.wl_output = @ptrCast(c.wl_registry_bind(reg, name, &c.wl_output_interface, @min(version, 3)) orelse return);
         const out = gpa.create(Output) catch fatal("out of memory", .{});
@@ -888,6 +978,8 @@ pub fn main(init: std.process.Init.Minimal) !void {
             col_a = parseHex(v);
         } else if (std.mem.eql(u8, k, "--b")) {
             col_b = parseHex(v);
+        } else if (std.mem.eql(u8, k, "--mode")) {
+            if (std.mem.eql(u8, v, "saver")) saver = true else if (!std.mem.eql(u8, v, "wallpaper")) usage();
         } else if (std.mem.eql(u8, k, "--stops")) {
             n_stops = 0;
             var it = std.mem.splitScalar(u8, v, ',');
@@ -925,6 +1017,10 @@ pub fn main(init: std.process.Init.Minimal) !void {
         return;
     }
 
+    if (saver) {
+        opt_speed *= 3; // livelier than the wallpaper it replaces
+        saver_start = now();
+    }
     const display = c.wl_display_connect(null) orelse fatal("cannot connect to Wayland display", .{});
     const registry = c.wl_display_get_registry(display);
     _ = c.wl_registry_add_listener(registry, &registry_listener, null);

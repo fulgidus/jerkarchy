@@ -63,7 +63,7 @@ jobs:
           if gh release view "$v" >/dev/null 2>&1; then echo "$v already released"; exit 0; fi
           dir=jerkarchy-$(cat VERSION)-x86_64
           mkdir -p "$dir"
-          cp /tmp/bin/jerkwall /tmp/bin/sway-binds README.md LICENSE "$dir/"
+          cp /tmp/bin/jerkwall /tmp/bin/jerkslide /tmp/bin/sway-binds README.md LICENSE "$dir/"
           tar -czf "$dir.tar.gz" "$dir"
           sha256sum "$dir.tar.gz" > "$dir.tar.gz.sha256"
           awk -v v="## $v" '$0 == v {on=1; next} /^## / && on {exit} on' CHANGELOG.md > notes.md

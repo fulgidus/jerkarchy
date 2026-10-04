@@ -13,6 +13,9 @@ if ! command -v swaylock >/dev/null; then
         -init-color 0x1a2a40 -input-color 0x{{ $t.accent | trimPrefix "#" }} -fail-color 0x{{ $t.accent2 | trimPrefix "#" }}
 fi
 
+# The screensaver would keep rendering behind the lock: stop it.
+pkill -f "^$HOME/.local/bin/jerkwall --mode saver"
+
 dir="${XDG_RUNTIME_DIR:-/tmp}/jerkwall-lock"
 set --
 jw="$HOME/.local/bin/jerkwall"  # full path: sway-spawned processes may lack ~/.local/bin in PATH
@@ -24,5 +27,20 @@ if [ -n "$SWAYSOCK" ] && [ -x "$jw" ]; then
     while read -r name w h; do
         "$jw" --frame "$w" "$h" "$dir/$name.png" 2>/dev/null && set -- "$@" -i "$name:$dir/$name.png"
     done < "$dir/outputs"
+fi
+
+# gtklock (themed card with clock and power buttons, ~/.config/gtklock) when
+# installed. Its per-output backgrounds go in a generated style sheet that
+# imports the theme's; swaylock (ring only) is the fallback.
+if command -v gtklock >/dev/null; then
+    css="$dir/lock.css"
+    mkdir -p "$dir" && chmod 700 "$dir"
+    printf '@import url("file://%s/.config/gtklock/style.css");\n' "$HOME" > "$css"
+    for png in "$dir"/*.png; do
+        [ -e "$png" ] || continue
+        name=$(basename "$png" .png)
+        printf 'window#%s { background-image: url("file://%s"); }\n' "$name" "$png" >> "$css"
+    done
+    exec gtklock --daemonize -c "$HOME/.config/gtklock/config.ini" -s "$css"
 fi
 exec swaylock -f "$@"

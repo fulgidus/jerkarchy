@@ -12,11 +12,13 @@
 # Keys: theme, wall_contrast (0.5–4), wall_fps (1–60), wall_speed (0.1–5),
 #       wall_points (20–600), kb_layout (us | it,us | …), kb_variant (,intl | …),
 #       kb_options (grp:alt_shift_toggle | …). "none" clears kb_variant/kb_options.
-#       fx_animation_ms (0–2000; SwayFX only, 0 = off).
+#       fx_animation_ms (0–2000; SwayFX only, 0 = off), slide_ms (workspace
+#       slide, 0–1000, 0 = off).
+#       saver_min, lock_min (idle minutes before screensaver / lock, 0–240, 0 = off).
 set -e
 
 CFG="${XDG_CONFIG_HOME:-$HOME/.config}/chezmoi/chezmoi.toml"
-KEYS="theme wall_contrast wall_fps wall_speed wall_points kb_layout kb_variant kb_options fx_animation_ms"
+KEYS="theme wall_contrast wall_fps wall_speed wall_points kb_layout kb_variant kb_options fx_animation_ms slide_ms saver_min lock_min"
 
 die() { echo "jerkarchy-set: $*" >&2; [ -t 2 ] || notify-send -a jerkarchy -u critical "jerkarchy-set" "$*" 2>/dev/null || true; exit 1; }
 
@@ -97,6 +99,8 @@ case "$key" in
         [ "$val" = none ] && val=""
         [ -z "$val" ] || printf '%s' "$val" | grep -qE '^[a-z0-9_:,+-]+$' || die "$key: letters, digits and _ : , + - only"
         toml="\"$val\"" ;;
+    saver_min|lock_min) printf '%s' "$val" | grep -qE '^[0-9]+$' && in_range "$val" 0 240 || die "$key: minutes 0–240 (0 = off)"; toml=$val ;;
+    slide_ms) printf '%s' "$val" | grep -qE '^[0-9]+$' && in_range "$val" 0 1000 || die "slide_ms: integer 0–1000 (0 = off)"; toml=$val ;;
     fx_animation_ms) printf '%s' "$val" | grep -qE '^[0-9]+$' && in_range "$val" 0 2000 || die "fx_animation_ms: integer 0–2000"; toml=$val ;;
     *) die "unknown key '$key' (keys: $KEYS)" ;;
 esac
@@ -110,13 +114,15 @@ edited=$(chezmoi status </dev/null 2>/dev/null | awk 'substr($0, 1, 1) != " " { 
 put "$key" "$toml"
 chezmoi apply --no-tty </dev/null >/dev/null 2>"${XDG_RUNTIME_DIR:-/tmp}/jerkarchy-set.log" ||
     die "chezmoi apply failed (see ${XDG_RUNTIME_DIR:-/tmp}/jerkarchy-set.log; chezmoi diff shows local edits)"
+# The login screen follows theme, wallpaper and keyboard (no-op without greetd).
+"$HOME/.local/bin/greeter-sync" 2>/dev/null || true
 
 # Reload only inside a running sway session.
 if [ -n "${SWAYSOCK:-}" ] && swaymsg -t get_version >/dev/null 2>&1; then
     case "$key" in
         theme) reload_theme ;;
         wall_*) reload_wall ;;
-        kb_*|fx_*) swaymsg -q reload ;;
+        kb_*|fx_*|saver_min|lock_min) swaymsg -q reload ;;
     esac
 fi
 echo "$key = $val"
