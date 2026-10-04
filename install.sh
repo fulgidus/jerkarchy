@@ -85,7 +85,7 @@ electronics	arduino-cli
 TABLE
 )
 # Remembered profiles plus the ones asked for now.
-PROFILE_LIST=$(printf '%s\n' $PROFILES_SAVED $(printf '%s' "$WITH" | tr ',' ' ') | grep -v '^$' | sort -u)
+PROFILE_LIST=$(printf '%s\n' $PROFILES_SAVED "${WITH//,/$'\n'}" | grep -v '^$' | sort -u)
 for p in $PROFILE_LIST; do
     printf '%s\n' "$PROFILES" | cut -f1 | grep -qx "$p" || { echo "unknown profile: $p (dev docker office gaming browsers creator electronics)" >&2; exit 2; }
 done
@@ -93,7 +93,8 @@ done
 say() { printf '\033[1;96m::\033[0m %s\n' "$*"; }
 
 command -v pacman >/dev/null || { echo "jerkarchy needs an Arch-based system." >&2; exit 1; }
-[ "$(id -u)" -ne 0 ] || { echo "run as your user, not root (sudo is used when needed)." >&2; exit 1; }
+# Dry runs change nothing, so CI (root in a container) may do them.
+[ "$(id -u)" -ne 0 ] || [ "${JERKARCHY_DRY_RUN:-0}" = 1 ] || { echo "run as your user, not root (sudo is used when needed)." >&2; exit 1; }
 
 PKGS=(
   swaybg swayidle swaylock autotiling xorg-xwayland xdg-desktop-portal-wlr xdg-desktop-portal-gtk
