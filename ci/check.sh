@@ -194,6 +194,57 @@ PICK=1 nm 7 && grep -qx 'invoke -n 7 x' "$NS/log" && ok "menu: invokes the notif
 PICK=3 nm 7 && grep -qx 'dismiss -n 7' "$NS/log" && ok "menu: dismiss" || bad "menu: dismiss"
 PICK=1 nm 3 && ! grep -q dismiss "$NS/rows" && ok "history entry: copy only, no dismiss" || bad "history entry rows"
 
+step "install.sh profiles (dry run: nothing installed)"
+IH="$TMP/inst-home"; mkdir -p "$IH"
+dry() { HOME="$IH" XDG_CONFIG_HOME="$IH/.config" JERKARCHY_DRY_RUN=1 bash install.sh "$@" 2>&1; }
+out=$(dry --with dev,office)
+if printf '%s\n' "$out" | grep -qx 'package: helix' && printf '%s\n' "$out" | grep -qx 'package: neovim' &&
+        printf '%s\n' "$out" | grep -q '^flagged: libreoffice-fresh:.*gnumeric' && ! printf '%s\n' "$out" | grep -qx 'package: steam'; then
+    ok "--with dev,office: clean picks + flagged apps, flagged ones explained"
+else bad "--with dev,office"; printf '%s\n' "$out" | sed 's/^/        /' | tail -8; fi
+out=$(dry --with dev,office --clean-only)
+if ! printf '%s\n' "$out" | grep -qE '^(package: (neovim|code|emacs|libreoffice-fresh|thunderbird)$|flagged:)' &&
+        printf '%s\n' "$out" | grep -qx 'package: aerc'; then
+    ok "--clean-only drops every flagged app"
+else bad "--clean-only"; fi
+out=$(dry --with dev,gaming,office,browsers,creator,electronics)
+if printf '%s\n' "$out" | grep -qx 'package: steam' && printf '%s\n' "$out" | grep -qx 'package: kicad' &&
+        printf '%s\n' "$out" | grep -qx 'package: tenacity' && printf '%s\n' "$out" | grep -qx 'package: librewolf'; then
+    ok "profiles stack (all seven at once)"
+else bad "stacking profiles"; fi
+if dry --with nosuch >/dev/null; then bad "accepts an unknown profile"; else ok "rejects an unknown profile"; fi
+mkdir -p "$IH/.config/jerkarchy"
+printf 'PROFILES_SAVED="docker"\nSWAYFX_SAVED=0\nCLEAN_ONLY_SAVED=0\n' >"$IH/.config/jerkarchy/install.conf"
+out=$(dry)
+if printf '%s\n' "$out" | grep -qx 'package: docker' && printf '%s\n' "$out" | grep -q 'compositor: sway$'; then
+    ok "saved choices (profiles, --no-swayfx) are kept on re-runs"
+else bad "saved choices"; printf '%s\n' "$out" | sed 's/^/        /' | tail -5; fi
+
+step "jerkarchy-update (throwaway remote; stub install.sh)"
+UR="$TMP/upd"; mkdir -p "$UR"
+(   set -e
+    git init -q --bare "$UR/remote.git"
+    git clone -q "$UR/remote.git" "$UR/work" 2>/dev/null
+    cd "$UR/work"; mkdir home
+    printf '0.1.2\n' >VERSION; printf '# Changelog\n\n## v0.1.2\n\n- old\n' >CHANGELOG.md
+    printf 'echo STUB-INSTALL-RAN "$JERKARCHY_SRC"\n' >install.sh
+    git add -A; git -c user.name=t -c user.email=t@t commit -qm v1; git push -q origin HEAD 2>/dev/null
+    git clone -q "$UR/remote.git" "$UR/user" 2>/dev/null
+    printf '0.1.3\n' >VERSION; printf '# Changelog\n\n## v0.1.3\n\n- new thing\n\n## v0.1.2\n\n- old\n' >CHANGELOG.md
+    git -c user.name=t -c user.email=t@t commit -qam v2; git push -q origin HEAD 2>/dev/null
+) >"$TMP/err" 2>&1
+UH="$TMP/upd-home"; mkdir -p "$UH/.config/chezmoi"
+printf 'sourceDir = "%s/user"\n' "$UR" >"$UH/.config/chezmoi/chezmoi.toml"
+upd() { HOME="$UH" XDG_CONFIG_HOME="$UH/.config" sh "$ROOT/home/dot_local/bin/executable_jerkarchy-update" 2>&1; }
+out=$(upd)
+if printf '%s\n' "$out" | grep -q 'v0.1.2 → v0.1.3' && printf '%s\n' "$out" | grep -qx -- '- new thing' &&
+        ! printf '%s\n' "$out" | grep -qx -- '- old' && printf '%s\n' "$out" | grep -q "STUB-INSTALL-RAN $UR/user"; then
+    ok "pulls, shows only the new changelog, runs the new install.sh"
+else bad "update"; printf '%s\n' "$out" | sed 's/^/        /' | tail -8; fi
+if upd | grep -q 'up to date (v0.1.3)'; then ok "says when it's up to date"; else bad "up-to-date case"; fi
+echo x >>"$UR/user/VERSION"
+if upd >/dev/null; then bad "must refuse with local changes"; else ok "refuses with local changes"; fi
+
 step "bar-battery against fake batteries (output must be valid JSON)"
 BB="$FAKEHOME/.local/bin/bar-battery"
 fake() {  # fake <status> <capacity> [charge_now] [current_now]

@@ -2,8 +2,15 @@
 # jerkarchy installer. Yes, this is all of it.
 # curl -fsSL https://raw.githubusercontent.com/fulgidus/jerkarchy/main/install.sh | bash
 #   … | bash -s -- --no-swayfx     plain sway even where SwayFX is available
+#   … | bash -s -- --with dev,office   also install profiles, any combination:
+#                                      dev docker office gaming browsers creator
+#                                      electronics; add --clean-only to skip the
+#                                      fashware-flagged apps in them
+#   --swayfx undoes an earlier --no-swayfx.
+# Re-run any time to add profiles: chosen ones are remembered for updates.
 # Environment: JERKARCHY_SRC (source checkout; default ~/Documents/jerkarchy),
-# JERKARCHY_REPO (clone URL), JERKARCHY_SWAYFX=0 (same as --no-swayfx).
+# JERKARCHY_REPO (clone URL), JERKARCHY_SWAYFX=0 (same as --no-swayfx),
+# JERKARCHY_DRY_RUN=1 (print the package list and flagged apps, then stop).
 set -euo pipefail
 
 REPO=${JERKARCHY_REPO:-https://github.com/fulgidus/jerkarchy.git}  # public mirror of main
@@ -12,12 +19,75 @@ REPO=${JERKARCHY_REPO:-https://github.com/fulgidus/jerkarchy.git}  # public mirr
 docs=$(xdg-user-dir DOCUMENTS 2>/dev/null || true)
 [ -n "$docs" ] && [ "$docs" != "$HOME" ] || docs=$HOME/Documents
 SRC=${JERKARCHY_SRC:-$docs/jerkarchy}
-SWAYFX=${JERKARCHY_SWAYFX:-1}
-for arg in "$@"; do
-    case $arg in
-        --no-swayfx) SWAYFX=0 ;;
-        *) echo "unknown option: $arg (see the top of install.sh)" >&2; exit 2 ;;
+# Choices from earlier runs (profiles, --no-swayfx, --clean-only) are kept
+# here so re-runs and jerkarchy-update don't undo them; options add to them.
+CONF=${XDG_CONFIG_HOME:-$HOME/.config}/jerkarchy/install.conf
+PROFILES_SAVED="" SWAYFX_SAVED=1 CLEAN_ONLY_SAVED=0
+# shellcheck disable=SC1090
+[ -f "$CONF" ] && . "$CONF"
+SWAYFX=${JERKARCHY_SWAYFX:-$SWAYFX_SAVED}
+WITH="" CLEAN_ONLY=$CLEAN_ONLY_SAVED
+while [ $# -gt 0 ]; do
+    case $1 in
+        --no-swayfx)  SWAYFX=0 ;;
+        --swayfx)     SWAYFX=1 ;;
+        --clean-only) CLEAN_ONLY=1 ;;
+        --with)       WITH=${2:?--with needs a list, e.g. dev,office}; shift ;;
+        --with=*)     WITH=${1#--with=} ;;
+        *) echo "unknown option: $1 (see the top of install.sh)" >&2; exit 2 ;;
     esac
+    shift
+done
+
+# Profiles: profile, package, and for fashware-flagged apps the reason and the
+# clean alternative in the same profile. Flagged apps are installed next to
+# their alternative (so you can switch when you like) unless --clean-only.
+PROFILES=$(cat <<'TABLE'
+dev	base-devel
+dev	helix
+dev	vim
+dev	ripgrep
+dev	fd
+dev	fzf
+dev	neovim	maintainer Justin M. Keyes is on the weird-guys list	helix, vim
+dev	code	Microsoft (Code - OSS) is on the fashware list	helix, vim
+dev	emacs	GNU/FSF: Richard Stallman is on the weird-guys list	helix, vim
+docker	docker
+docker	docker-compose
+docker	docker-buildx
+office	gnumeric
+office	abiword
+office	zathura
+office	zathura-pdf-mupdf
+office	aerc
+office	libreoffice-fresh	forked from OpenOffice.org, then Oracle's (fashware list)	gnumeric, abiword
+office	thunderbird	Mozilla: co-founder Brendan Eich is on the weird-guys list	aerc
+gaming	steam
+gaming	lutris
+gaming	wine
+gaming	gamemode
+gaming	lib32-gamemode
+gaming	mangohud
+gaming	lib32-mangohud
+browsers	librewolf	a Firefox fork: Mozilla's co-founder Brendan Eich is on the weird-guys list	none: every engine is Mozilla's, Google's or Apple's
+browsers	vivaldi	built on Chromium (Google, fashware list); its UI is closed source	none: every engine is Mozilla's, Google's or Apple's
+creator	gimp
+creator	shotcut
+creator	inkscape
+creator	tenacity
+creator	audacity	Muse Group's 2021 telemetry and privacy-policy rug-pull	tenacity
+creator	blender	funded by NVIDIA, Microsoft, AMD, Intel, Facebook, Dell, Adobe (fashware list)	none comparable
+electronics	kicad
+electronics	kicad-library
+electronics	platformio-core
+electronics	platformio-core-udev
+electronics	arduino-cli
+TABLE
+)
+# Remembered profiles plus the ones asked for now.
+PROFILE_LIST=$(printf '%s\n' $PROFILES_SAVED $(printf '%s' "$WITH" | tr ',' ' ') | grep -v '^$' | sort -u)
+for p in $PROFILE_LIST; do
+    printf '%s\n' "$PROFILES" | cut -f1 | grep -qx "$p" || { echo "unknown profile: $p (dev docker office gaming browsers creator electronics)" >&2; exit 2; }
 done
 
 say() { printf '\033[1;96m::\033[0m %s\n' "$*"; }
@@ -68,7 +138,30 @@ build_swayfx() {
     rm -rf "$tmp"
 }
 
-say "installing packages (sudo)"
+FLAGGED=()
+for p in $PROFILE_LIST; do
+    while IFS=$'\t' read -r prof pkg why alt; do
+        [ "$prof" = "$p" ] || continue
+        if [ -n "$why" ]; then
+            [ "$CLEAN_ONLY" = 1 ] && continue
+            FLAGGED+=("$pkg: $why (clean alternative: $alt)")
+        fi
+        PKGS+=("$pkg")
+    done <<<"$PROFILES"
+done
+if [ "${JERKARCHY_DRY_RUN:-0}" = 1 ]; then  # tests: show what would happen, change nothing
+    printf 'package: %s\n' "${PKGS[@]}"
+    [ ${#FLAGGED[@]} -gt 0 ] && printf 'flagged: %s\n' "${FLAGGED[@]}"
+    exit 0
+fi
+# Steam and the lib32 libraries live in Arch's official multilib repo.
+if printf '%s\n' $PROFILE_LIST | grep -qx gaming && ! grep -q '^\[multilib\]' /etc/pacman.conf; then
+    say "enabling the multilib repo (gaming profile)"
+    sudo sed -i '/^#\[multilib\]/,/^#Include/ s/^#//' /etc/pacman.conf
+    sudo pacman -Sy
+fi
+
+say "installing packages (sudo)${PROFILE_LIST:+, profiles: $(echo $PROFILE_LIST)}"
 # --ask 4: if switching between sway and SwayFX, replace the other one.
 sudo pacman -S --needed --noconfirm --ask 4 "${PKGS[@]}"
 
@@ -79,6 +172,22 @@ fi
 
 say "enabling services"
 sudo systemctl enable --now NetworkManager bluetooth power-profiles-daemon
+if printf '%s\n' $PROFILE_LIST | grep -qx docker; then
+    # The docker group is root-equivalent; it's what "docker without sudo" means.
+    sudo systemctl enable --now docker.socket
+    sudo usermod -aG docker "$(id -un)"
+fi
+if printf '%s\n' $PROFILE_LIST | grep -qx electronics; then
+    sudo usermod -aG uucp "$(id -un)"   # serial ports (/dev/ttyACM*, /dev/ttyUSB*) for boards
+fi
+mkdir -p "$(dirname "$CONF")"
+cat > "$CONF" <<CONFEOF
+# jerkarchy install choices, written by install.sh; re-runs and
+# jerkarchy-update reuse them. Edit with care, or re-run install.sh.
+PROFILES_SAVED="$(echo $PROFILE_LIST)"
+SWAYFX_SAVED=$SWAYFX
+CLEAN_ONLY_SAVED=$CLEAN_ONLY
+CONFEOF
 
 # Older installs kept the source in ~/.local/share/jerkarchy: move it.
 old=$HOME/.local/share/jerkarchy
@@ -129,5 +238,9 @@ else
     sudo systemctl enable greetd
 fi
 
+if [ ${#FLAGGED[@]} -gt 0 ]; then
+    say "installed, but on the fashware lists (switch when you like; --clean-only skips them):"
+    printf '     %s\n' "${FLAGGED[@]}"
+fi
 say "done. log out (or reboot), pick 'Sway' at the login screen, press Super+H."
 say "funding received: \$0. features missing: surprisingly few."
