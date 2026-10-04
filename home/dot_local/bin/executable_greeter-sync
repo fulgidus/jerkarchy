@@ -1,0 +1,16 @@
+#!/bin/sh
+# greeter-sync — copy the login screen's files to /var/lib/jerkarchy/greeter,
+# where the greeter (another user) can read them: nwg-hello's style and
+# settings (linked from /etc/nwg-hello by install.sh), its sway config, and a
+# copy of jerkwall with the current wallpaper settings. Run by install.sh and
+# by jerkarchy-set when the theme, wallpaper or keyboard changes. No sudo:
+# install.sh makes the directory yours. Without it (greetd not set up), quiet no-op.
+dst=/var/lib/jerkarchy/greeter
+src="${XDG_CONFIG_HOME:-$HOME/.config}"
+[ -d "$dst" ] && [ -w "$dst" ] || exit 0
+install -m 644 "$src/jerkarchy/greeter/nwg-hello.css" "$src/jerkarchy/greeter/nwg-hello.json" \
+    "$src/jerkarchy/greeter/sway-config" "$dst/"
+mkdir -p "$dst/jerkwall"
+install -m 644 "$src/jerkwall/config" "$dst/jerkwall/config"
+mkdir -p "$dst/bin"
+install -m 755 "$HOME/.local/bin/jerkwall" "$dst/bin/jerkwall.new" && mv "$dst/bin/jerkwall.new" "$dst/bin/jerkwall"

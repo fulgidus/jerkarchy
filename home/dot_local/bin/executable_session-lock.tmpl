@@ -28,4 +28,19 @@ if [ -n "$SWAYSOCK" ] && [ -x "$jw" ]; then
         "$jw" --frame "$w" "$h" "$dir/$name.png" 2>/dev/null && set -- "$@" -i "$name:$dir/$name.png"
     done < "$dir/outputs"
 fi
+
+# gtklock (themed card with clock and power buttons, ~/.config/gtklock) when
+# installed. Its per-output backgrounds go in a generated style sheet that
+# imports the theme's; swaylock (ring only) is the fallback.
+if command -v gtklock >/dev/null; then
+    css="$dir/lock.css"
+    mkdir -p "$dir" && chmod 700 "$dir"
+    printf '@import url("file://%s/.config/gtklock/style.css");\n' "$HOME" > "$css"
+    for png in "$dir"/*.png; do
+        [ -e "$png" ] || continue
+        name=$(basename "$png" .png)
+        printf 'window#%s { background-image: url("file://%s"); }\n' "$name" "$png" >> "$css"
+    done
+    exec gtklock --daemonize -c "$HOME/.config/gtklock/config.ini" -s "$css"
+fi
 exec swaylock -f "$@"

@@ -112,6 +112,8 @@ edited=$(chezmoi status </dev/null 2>/dev/null | awk 'substr($0, 1, 1) != " " { 
 put "$key" "$toml"
 chezmoi apply --no-tty </dev/null >/dev/null 2>"${XDG_RUNTIME_DIR:-/tmp}/jerkarchy-set.log" ||
     die "chezmoi apply failed (see ${XDG_RUNTIME_DIR:-/tmp}/jerkarchy-set.log; chezmoi diff shows local edits)"
+# The login screen follows theme, wallpaper and keyboard (no-op without greetd).
+"$HOME/.local/bin/greeter-sync" 2>/dev/null || true
 
 # Reload only inside a running sway session.
 if [ -n "${SWAYSOCK:-}" ] && swaymsg -t get_version >/dev/null 2>&1; then
