@@ -8,7 +8,15 @@
 
 bin="$HOME/.local/bin"
 # Rows are "<shown> TAB <id>": fuzzel shows column 1 and prints column 2.
-menu() { fuzzel --config "$HOME/.config/fuzzel/bar-menu.ini" --dmenu --with-nth=1 --accept-nth=2 "$@"; }
+# Right (fuzzel exit 10) opens like Enter; Left (exit 11) answers "back".
+INI="$HOME/.config/fuzzel/settings-menu.ini"
+menu() {
+    r=$(fuzzel --config "$INI" --dmenu --with-nth=1 --accept-nth=2 "$@"); rc=$?
+    case $rc in
+        0|10) printf '%s\n' "$r" ;;
+        11)   echo back ;;
+    esac
+}
 
 # Material Design Nerd Font icons as UTF-8 byte escapes (no raw glyphs in files).
 I_THEME=$(printf '\363\260\217\230')     # U+F03D8 palette
@@ -33,7 +41,7 @@ I_POINTS=$(printf '\363\261\201\211')    # U+F1049 graph
 TAB=$(printf '\t')
 TITLE_CHARS="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ._:!?/-"
 
-pkill -f "^fuzzel --config $HOME/.config/fuzzel/bar-menu.ini" && exit 0
+pkill -f "^fuzzel --config $HOME/.config/fuzzel/(bar|settings)-menu.ini" && exit 0
 
 get() { "$bin/jerkarchy-set" get "$1"; }
 mark() { [ "$1" = "$2" ] && printf '%s' "$I_CHECK" || printf ' '; }   # mark CURRENT CANDIDATE
@@ -77,8 +85,8 @@ value_menu() {
     key=$1 label=$2; shift 2
     cur=$(get "$key")
     choice=$({ for v in "$@"; do printf '%s %s\n' "$(mark "$cur" "$v")" "$v"; done; printf '%s  back\n' "$I_BACK"; } |
-             fuzzel --config "$HOME/.config/fuzzel/bar-menu.ini" --dmenu \
-                 --prompt "$label › " --placeholder "now $cur: pick or type a value" | awk '{ print $NF }')
+             { r=$(fuzzel --config "$INI" --dmenu --prompt "$label › " --placeholder "now $cur: pick or type a value"); rc=$?
+               case $rc in 0|10) printf '%s\n' "$r" ;; 11) echo back ;; esac; } | awk '{ print $NF }')
     case "$choice" in
         "")   exit 0 ;;
         back) return ;;
