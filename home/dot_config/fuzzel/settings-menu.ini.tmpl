@@ -1,0 +1,10 @@
+# fuzzel for jerkarchy-settings: the bar-menu look, plus arrow navigation —
+# Right opens the selected entry (exit 10), Left goes back (exit 11).
+# Text-cursor moves are on Ctrl+B / Ctrl+F here instead.
+include={{ .chezmoi.homeDir }}/.config/fuzzel/bar-menu.ini
+
+[key-bindings]
+cursor-left=Control+b
+cursor-right=Control+f
+custom-1=Right
+custom-2=Left
