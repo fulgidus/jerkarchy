@@ -1,8 +1,0 @@
-#!/bin/sh
-# screensaver — the live wallpaper, full screen, on top of everything
-# (jerkwall --mode saver). Any key, click, scroll or real mouse move ends it.
-# Started by swayidle (see idle-daemon) or Settings › screensaver › now;
-# a second start while it runs does nothing.
-jw="$HOME/.local/bin/jerkwall"
-pgrep -f "^$jw --mode saver" >/dev/null && exit 0
-exec "$jw" --mode saver

@@ -6,3 +6,4 @@ src/*/sway-binds
 src/*/.zig-cache
 src/*/zig-out
 src/*/jerkslide
+src/*/jerksaver

@@ -152,11 +152,19 @@ saver_menu() {
     while :; do
         choice=$(printf '%s\n' \
             "$I_SAVER  start now${TAB}now" \
+            "$I_SAVER  mode               $(get saver_mode)${TAB}mode" \
+            "$I_SAVER  title              $(get saver_title)${TAB}title" \
             "$I_SAVER  screensaver after  $(min_label saver_min)${TAB}saver" \
             "$I_SESSION  lock after         $(min_label lock_min)${TAB}lock" \
             "$I_BACK  back${TAB}back" | menu --prompt 'screensaver › ')
         case "$choice" in
             now)   exec "$bin/screensaver" ;;
+            mode)  value_menu saver_mode "screensaver mode" wallpaper matrix bonsai city galaxy planets threebody random ;;
+            title)
+                # free text (spaces allowed): whatever is typed, as typed
+                t=$(printf '' | fuzzel --config "$HOME/.config/fuzzel/bar-menu.ini" --dmenu --lines 0 \
+                        --prompt 'title › ' --placeholder "now: $(get saver_title) (none = no title)")
+                [ -n "$t" ] && "$bin/jerkarchy-set" saver_title "$t" >/dev/null ;;
             saver) value_menu saver_min "screensaver (min)" 0 1 2 5 10 15 30 ;;
             lock)  value_menu lock_min "lock (min)" 0 5 10 15 30 60 ;;
             back)  return ;;

@@ -248,8 +248,9 @@ elif need zig && need wayland-scanner; then
     if (cd src/jerkwall && mkdir -p "$TMP/jw-gen" && for p in wlr-layer-shell-unstable-v1 xdg-shell; do
             wayland-scanner client-header "protocol/$p.xml" "$TMP/jw-gen/$p-client-protocol.h" &&
             wayland-scanner private-code "protocol/$p.xml" "$TMP/jw-gen/$p-protocol.c" || exit 1; done &&
-        zig build-exe main.zig "$TMP"/jw-gen/*.c -I"$TMP/jw-gen" -I/usr/include -L/usr/lib \
-            -target x86_64-linux-gnu -lc -lwayland-client -lwayland-egl -lEGL -lGLESv2 -O ReleaseFast -femit-bin="$TMP/jerkwall") >"$TMP/zig" 2>&1; then
+        zig build-exe -target x86_64-linux-gnu -O ReleaseFast -I"$TMP/jw-gen" -I/usr/include "$TMP"/jw-gen/*.c \
+            --dep font -Mroot=main.zig -O ReleaseFast -Mfont=../common/font5x7.zig \
+            -L/usr/lib -lc -lwayland-client -lwayland-egl -lEGL -lGLESv2 -femit-bin="$TMP/jerkwall") >"$TMP/zig" 2>&1; then
         ok "build"
         [ -n "${CI_OUT:-}" ] && mkdir -p "$CI_OUT" && cp "$TMP/jerkwall" "$CI_OUT/"
         if "$TMP/jerkwall" --fps x >/dev/null 2>&1; then bad "rejects bad --fps"; else ok "rejects bad --fps"; fi
@@ -313,6 +314,29 @@ elif need zig && need wayland-scanner; then
         else
             skip "headless sway didn't start here"
         fi
+    else
+        bad "build"; sed 's/^/        /' "$TMP/zig"
+    fi
+fi
+
+step "zig: jerksaver (terminal screensavers)"
+if [ "$QUICK" = 1 ]; then
+    skip "--quick"
+elif need zig; then
+    if (cd src/jerksaver && zig build-exe -target x86_64-linux-gnu -O ReleaseFast \
+            --dep font -Mroot=main.zig -O ReleaseFast -Mfont=../common/font5x7.zig -lc -femit-bin="$TMP/jerksaver") >"$TMP/zig" 2>&1; then
+        ok "build"
+        [ -n "${CI_OUT:-}" ] && mkdir -p "$CI_OUT" && cp "$TMP/jerksaver" "$CI_OUT/"
+        if "$TMP/jerksaver" nosuchmode >/dev/null 2>&1; then bad "rejects an unknown mode"; else ok "rejects an unknown mode"; fi
+        if "$TMP/jerksaver" matrix --title 'bad"title' >/dev/null 2>&1; then bad "rejects a title the font can't draw"; else ok "rejects a title the font can't draw"; fi
+        # Every mode runs a few frames in a pseudo-terminal, then quits on a key.
+        if command -v script >/dev/null; then
+            for m in matrix bonsai city galaxy planets threebody; do
+                if (sleep 1.6; printf q) | timeout 10 script -qec "stty cols 120 rows 40; $TMP/jerksaver $m" /dev/null >/dev/null 2>&1; then
+                    ok "$m runs and quits on a key"
+                else bad "$m runs and quits on a key"; fi
+            done
+        else skip "script (util-linux) missing: modes not run"; fi
     else
         bad "build"; sed 's/^/        /' "$TMP/zig"
     fi

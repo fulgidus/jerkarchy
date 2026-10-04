@@ -12,3 +12,5 @@ fx_animation_ms = 250
 saver_min = 5
 lock_min = 10
 slide_ms = 220
+saver_mode = "wallpaper"
+saver_title = "jerkarchy"

@@ -19,6 +19,7 @@
 //! Defaults match jerkarchy's palette: bg 0a0a0f, a 00f0ff (cyan), b ff2b6d (magenta).
 
 const std = @import("std");
+const font = @import("font");
 const c = @cImport({
     @cDefine("_GNU_SOURCE", {}); // memfd_create
     @cInclude("wayland-client.h");
@@ -66,7 +67,7 @@ fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
 }
 
 fn usage() noreturn {
-    std.debug.print("usage: jerkwall [--fps N] [--points N] [--speed X] [--contrast X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB] [--stops RRGGBB,RRGGBB,...] [--mode wallpaper|saver] [--at S] [--frame W H FILE.png]\n", .{});
+    std.debug.print("usage: jerkwall [--fps N] [--points N] [--speed X] [--contrast X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB] [--stops RRGGBB,RRGGBB,...] [--mode wallpaper|saver] [--title TEXT] [--title-a RRGGBB] [--title-b RRGGBB] [--at S] [--frame W H FILE.png]\n", .{});
     std.process.exit(2);
 }
 
@@ -355,6 +356,9 @@ var shm: ?*c.wl_shm = null;
 // grabbed, cursor hidden; any key, click, scroll or real pointer movement
 // exits (after a short grace period, so the motion that started it doesn't).
 var saver = false;
+var saver_title: []const u8 = "";
+var col_title_a: Rgb = hex(0x00f0ff);
+var col_title_b: Rgb = hex(0xff2b6d);
 var saver_start: f64 = 0;
 var seat: ?*c.wl_seat = null;
 var pointer: ?*c.wl_pointer = null;
@@ -603,6 +607,16 @@ fn renderGpu(out: *Output, w: usize, h: usize) void {
             }) catch return;
         }
     }
+    titleRects(w, h);
+    for (trects.items) |r| {
+        const xa = r.x / fw * 2 - 1;
+        const xb = (r.x + r.w) / fw * 2 - 1;
+        const ya = 1 - r.y / fh * 2;
+        const yb = 1 - (r.y + r.h) / fh * 2;
+        for ([6][2]f64{ .{ xa, ya }, .{ xb, ya }, .{ xb, yb }, .{ xa, ya }, .{ xb, yb }, .{ xa, yb } }) |v| {
+            out.gl_verts.appendSlice(gpa, &.{ @floatCast(v[0]), @floatCast(v[1]), @floatCast(r.col.r), @floatCast(r.col.g), @floatCast(r.col.b) }) catch return;
+        }
+    }
 
     c.wl_surface_set_buffer_scale(out.surface, scale);
     c.glViewport(0, 0, @intCast(w), @intCast(h));
@@ -659,6 +673,43 @@ fn ensureBuffer(b: *Buffer, w: usize, h: usize) !void {
 }
 
 /// Draw the current scene into an XRGB8888 pixel buffer.
+/// Saver title (and the time under it) as solid rectangles, in pixels of a
+/// w×h frame: the 5×7 block font, centred, with a soft shadow. Shared by
+/// the GPU (two triangles each) and CPU (fills) paths.
+const TRect = struct { x: f64, y: f64, w: f64, h: f64, col: Rgb };
+var trects: std.ArrayList(TRect) = .empty;
+fn titleRects(w: usize, h: usize) void {
+    trects.clearRetainingCapacity();
+    if (!saver or saver_title.len == 0) return;
+    const fw: f64 = @floatFromInt(w);
+    const fh: f64 = @floatFromInt(h);
+    const tw: f64 = @floatFromInt(font.textWidth(saver_title));
+    const p = @max(2, @floor(@min(fw * 0.5 / tw, fh * 0.13 / 7)));
+    const x0 = @floor((fw - tw * p) / 2);
+    const y0 = @floor(fh / 2 - 3.5 * p);
+    var tbuf: [16]u8 = undefined;
+    var tt: c.time_t = c.time(null);
+    var tm: c.struct_tm = undefined;
+    _ = c.localtime_r(&tt, &tm);
+    const clock = tbuf[0..c.strftime(&tbuf, tbuf.len, "%H:%M", &tm)];
+    const q = @max(2, @floor(p / 3));
+    const cx0 = @floor((fw - @as(f64, @floatFromInt(font.textWidth(clock))) * q) / 2);
+    const cy0 = y0 + 9 * p;
+    for (0..2) |pass| { // 0: shadow, 1: glyphs
+        const off: f64 = if (pass == 0) @max(1, @floor(p / 4)) else 0;
+        for (saver_title, 0..) |chr, i| for (0..font.h) |fy| for (0..font.w) |fx| {
+            if (!font.pixel(chr, fx, fy)) continue;
+            const col = if (pass == 0) mix(col_bg, hex(0x000000), 0.5) else mix(col_title_a, col_title_b, @as(f64, @floatFromInt(fy)) / 10);
+            trects.append(gpa, .{ .x = x0 + @as(f64, @floatFromInt(i * (font.w + 1) + fx)) * p + off, .y = y0 + @as(f64, @floatFromInt(fy)) * p + off, .w = p, .h = p, .col = col }) catch return;
+        };
+        for (clock, 0..) |chr, i| for (0..font.h) |fy| for (0..font.w) |fx| {
+            if (!font.pixel(chr, fx, fy)) continue;
+            const col = if (pass == 0) mix(col_bg, hex(0x000000), 0.5) else mix(col_bg, hex(0xffffff), 0.75);
+            trects.append(gpa, .{ .x = cx0 + @as(f64, @floatFromInt(i * (font.w + 1) + fx)) * q + off / 2, .y = cy0 + @as(f64, @floatFromInt(fy)) * q + off / 2, .w = q, .h = q, .col = col }) catch return;
+        };
+    }
+}
+
 fn drawFrame(px: []u32, w: usize, h: usize, verts: *std.ArrayList(V), tris: *std.ArrayList(Tri)) !void {
     const fw: f64 = @floatFromInt(w);
     const fh: f64 = @floatFromInt(h);
@@ -668,6 +719,14 @@ fn drawFrame(px: []u32, w: usize, h: usize, verts: *std.ArrayList(V), tris: *std
     @memset(px, pack(col_bg));
     for (tris.items) |tr| {
         fillTri(px, w, h, verts.items[tr.a], verts.items[tr.b], verts.items[tr.c], pack(facetRgb(tr, fw, fh)));
+    }
+    titleRects(w, h);
+    for (trects.items) |r| {
+        const xa: usize = @intFromFloat(std.math.clamp(r.x, 0, fw));
+        const xb: usize = @intFromFloat(std.math.clamp(r.x + r.w, 0, fw));
+        const ya: usize = @intFromFloat(std.math.clamp(r.y, 0, fh));
+        const yb: usize = @intFromFloat(std.math.clamp(r.y + r.h, 0, fh));
+        for (ya..yb) |y| @memset(px[y * w + xa .. y * w + xb], pack(r.col));
     }
 }
 
@@ -999,6 +1058,13 @@ pub fn main(init: std.process.Init.Minimal) !void {
             col_a = parseHex(v);
         } else if (std.mem.eql(u8, k, "--b")) {
             col_b = parseHex(v);
+        } else if (std.mem.eql(u8, k, "--title")) {
+            if (!font.supported(v)) usage();
+            saver_title = v;
+        } else if (std.mem.eql(u8, k, "--title-a")) {
+            col_title_a = parseHex(v);
+        } else if (std.mem.eql(u8, k, "--title-b")) {
+            col_title_b = parseHex(v);
         } else if (std.mem.eql(u8, k, "--mode")) {
             if (std.mem.eql(u8, v, "saver")) saver = true else if (!std.mem.eql(u8, v, "wallpaper")) usage();
         } else if (std.mem.eql(u8, k, "--stops")) {

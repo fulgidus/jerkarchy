@@ -14,11 +14,13 @@
 #       kb_options (grp:alt_shift_toggle | …). "none" clears kb_variant/kb_options.
 #       fx_animation_ms (0–2000; SwayFX only, 0 = off), slide_ms (workspace
 #       slide, 0–1000, 0 = off).
-#       saver_min, lock_min (idle minutes before screensaver / lock, 0–240, 0 = off).
+#       saver_min, lock_min (idle minutes before screensaver / lock, 0–240, 0 = off),
+#       saver_mode (wallpaper matrix bonsai city galaxy planets threebody random),
+#       saver_title (≤ 24 of: letters digits space - _ . : ! ? / ; "none" = no title).
 set -e
 
 CFG="${XDG_CONFIG_HOME:-$HOME/.config}/chezmoi/chezmoi.toml"
-KEYS="theme wall_contrast wall_fps wall_speed wall_points kb_layout kb_variant kb_options fx_animation_ms slide_ms saver_min lock_min"
+KEYS="theme wall_contrast wall_fps wall_speed wall_points kb_layout kb_variant kb_options fx_animation_ms slide_ms saver_min lock_min saver_mode saver_title"
 
 die() { echo "jerkarchy-set: $*" >&2; [ -t 2 ] || notify-send -a jerkarchy -u critical "jerkarchy-set" "$*" 2>/dev/null || true; exit 1; }
 
@@ -57,6 +59,8 @@ is_num() { printf '%s' "$1" | grep -qE '^[0-9]+(\.[0-9]+)?$'; }
 in_range() { awk -v x="$1" -v lo="$2" -v hi="$3" 'BEGIN { exit !(x >= lo && x <= hi) }'; }
 
 reload_wall() {
+    # Workspace-slide snapshots show the old look: drop them.
+    rm -f "${XDG_RUNTIME_DIR:-/tmp}"/jerkslide/*.ppm
     pkill -x jerkwall || true
     swaymsg -q exec "$HOME/.local/bin/jerkwall"
 }
@@ -98,6 +102,14 @@ case "$key" in
     kb_variant|kb_options)
         [ "$val" = none ] && val=""
         [ -z "$val" ] || printf '%s' "$val" | grep -qE '^[a-z0-9_:,+-]+$' || die "$key: letters, digits and _ : , + - only"
+        toml="\"$val\"" ;;
+    saver_mode)
+        case "$val" in wallpaper|matrix|bonsai|city|galaxy|planets|threebody|random) ;;
+            *) die "saver_mode: wallpaper matrix bonsai city galaxy planets threebody random" ;; esac
+        toml="\"$val\"" ;;
+    saver_title)
+        [ "$val" = none ] && val=""
+        [ ${#val} -le 24 ] && ! printf '%s' "$val" | grep -q "[^A-Za-z0-9 ._:!?/-]" || die "saver_title: up to 24 of letters, digits, space and - _ . : ! ? /"
         toml="\"$val\"" ;;
     saver_min|lock_min) printf '%s' "$val" | grep -qE '^[0-9]+$' && in_range "$val" 0 240 || die "$key: minutes 0–240 (0 = off)"; toml=$val ;;
     slide_ms) printf '%s' "$val" | grep -qE '^[0-9]+$' && in_range "$val" 0 1000 || die "slide_ms: integer 0–1000 (0 = off)"; toml=$val ;;
