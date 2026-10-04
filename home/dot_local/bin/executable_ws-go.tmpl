@@ -1,24 +1,52 @@
+{{- $t := index .themes .theme -}}
 #!/bin/sh
-# ws-go N — go to workspace number N with a slide (jerkslide): the screen
-# being left slides off left (higher N) or right (lower N) while sway switches
-# underneath. Setting slide_ms (0 = off: plain switch). Used by the
-# Super+1…9 binds and sway-ws; without grim/jerkslide it just switches.
+# ws-go N — go to workspace number N with a slide (jerkslide): both
+# workspaces move across, the old one out and the new one in (left for a
+# higher N, right for a lower one); the bar stays put. Setting slide_ms
+# (0 = off: plain switch). Used by Super+1…9 and sway-ws; without
+# grim/jerkslide it just switches.
+#
+# The incoming picture: the snapshot taken when that workspace was last left
+# (kept per output and workspace in $XDG_RUNTIME_DIR/jerkslide, half size), a
+# wallpaper frame for a new, empty workspace, or the theme's background.
 n=${1:?usage: ws-go N}
 ms={{ .slide_ms }}
 js="$HOME/.local/bin/jerkslide"
+jw="$HOME/.local/bin/jerkwall"
 switch() { exec swaymsg -q "workspace number $n"; }
 
 [ "$ms" -gt 0 ] && [ -x "$js" ] && command -v grim >/dev/null || switch
-read -r cur out <<EOT
-$(swaymsg -t get_workspaces -r | jq -r '.[] | select(.focused) | "\(.num) \(.output)"')
-EOT
-[ "$cur" = "$n" ] && switch          # sway's back_and_forth etc. stay as-is
-[ "$n" -gt "${cur:-0}" ] && dir=left || dir=right
 
-fifo="${XDG_RUNTIME_DIR:-/tmp}/ws-go.$$"
+# focused: num, output, area geometry; and whether N already exists there
+read -r cur out xy wh area_y area_h exists <<EOT
+$(swaymsg -t get_workspaces -r | jq -r --argjson n "$n" '
+    (.[] | select(.focused)) as $f
+    | "\($f.num) \($f.output) \($f.rect.x),\($f.rect.y) \($f.rect.width)x\($f.rect.height) \($f.rect.y) \($f.rect.height) \([.[] | select(.num == $n)] | length)"')
+EOT
+[ -n "$cur" ] && [ "$cur" != "$n" ] || switch
+geom="$xy $wh"   # grim -g "x,y wxh"
+[ "$n" -gt "$cur" ] && dir=left || dir=right
+
+cache="${XDG_RUNTIME_DIR:-/tmp}/jerkslide"
+mkdir -p "$cache" && chmod 700 "$cache"
+set -- --save "$cache/$out-$cur.ppm" --bg "{{ $t.bg | trimPrefix "#" }}"
+if [ -f "$cache/$out-$n.ppm" ] && [ "$exists" -gt 0 ]; then
+    set -- "$@" --in "$cache/$out-$n.ppm"
+elif [ "$exists" = 0 ] && [ -x "$jw" ]; then
+    # New workspace: it'll show just the wallpaper. Render the output's frame
+    # and crop it to the area below the bar.
+    read -r oy scale pw ph <<EOT
+$(swaymsg -t get_outputs -r | jq -r --arg o "$out" '.[] | select(.name == $o) | "\(.rect.y) \(.scale) \(.current_mode.width) \(.current_mode.height)"')
+EOT
+    crop=$(awk -v ay="$area_y" -v oy="$oy" -v ah="$area_h" -v s="$scale" 'BEGIN { printf "%d %d", (ay - oy) * s + 0.5, ah * s + 0.5 }')
+    "$jw" --frame "$pw" "$ph" "$cache/wall.ppm" 2>/dev/null &&
+        set -- "$@" --in "$cache/wall.ppm" --in-crop $crop
+fi
+
+fifo="$cache/ready.$$"
 mkfifo -m 600 "$fifo" || switch
-grim -o "$out" -t ppm - 2>/dev/null | "$js" "$out" "$dir" "$ms" >"$fifo" 2>/dev/null &
-# Switch once the overlay is up (or give up waiting after ~1 s).
+grim -g "$geom" -t ppm - 2>/dev/null | "$js" "$out" "$dir" "$ms" "$@" >"$fifo" 2>/dev/null &
+# Switch once the overlay is up (EOF if jerkslide gave up: switch anyway).
 read -r _ready <"$fifo"
 rm -f "$fifo"
 switch
