@@ -8,3 +8,4 @@ wall_points = 140
 kb_layout = "us"
 kb_variant = ""
 kb_options = ""
+fx_animation_ms = 250

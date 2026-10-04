@@ -296,6 +296,9 @@ exec autotiling
 # Live Delaunay wallpaper (src/jerkwall); options in ~/.config/jerkwall/config
 # (from the theme and wall_* settings: jerkarchy-settings).
 exec $bin/jerkwall
+# Animations (workspace switch, open/close, resize) when running SwayFX; a
+# no-op on plain sway. exec_always: re-applied on reload (fx_animation_ms).
+exec_always $bin/sway-fx
 # XDG autostart entries (/etc/xdg/autostart, ~/.config/autostart): sway doesn't
 # run them itself. sway-session.target (~/.config/systemd/user) pulls in
 # systemd's xdg-desktop-autostart.target, which honours OnlyShowIn/NotShowIn.

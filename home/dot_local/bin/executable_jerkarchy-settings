@@ -19,6 +19,7 @@ I_BT=$(printf '\363\260\202\257')        # U+F00AF bluetooth
 I_AUDIO=$(printf '\363\260\225\276')     # U+F057E volume-high
 I_DISPLAY=$(printf '\363\260\215\271')   # U+F0379 monitor
 I_KEYS=$(printf '\363\260\214\214')      # U+F030C keyboard
+I_FX=$(printf '\363\260\244\225')        # U+F0915 transition
 I_SESSION=$(printf '\363\260\220\245')   # U+F0425 power
 I_INFO=$(printf '\363\260\213\275')      # U+F02FD information-outline
 I_NOTIFY=$(printf '\363\260\202\232')    # U+F009A bell
@@ -119,6 +120,14 @@ kb_menu() {
     done
 }
 
+# Animations exist only on SwayFX; say so instead of offering a dead knob.
+fx_label() {
+    case "$(sway --version 2>/dev/null)" in
+        *[Ss]way[Ff][Xx]*) ms=$(get fx_animation_ms); [ "$ms" = 0 ] && echo off || echo "$ms ms" ;;
+        *) echo "needs SwayFX" ;;
+    esac
+}
+
 profile_menu() {
     cur=$("$bin/power-profile" get 2>/dev/null)
     choice=$({ for p in power-saver balanced performance; do printf '%s %s\t%s\n' "$(mark "$cur" "$p")" "$p" "$p"; done; back_row; } |
@@ -151,6 +160,8 @@ $I_DISPLAY  displays${TAB}displays"
     rows="$rows
 $I_KEYS  keyboard   $(get kb_layout)${TAB}keyboard"
     rows="$rows
+$I_FX  animations $(fx_label)${TAB}fx"
+    rows="$rows
 $I_NOTIFY  notifications${TAB}notify
 $I_KEYS  keybindings${TAB}keys
 $I_SESSION  session${TAB}session
@@ -162,6 +173,7 @@ $I_INFO  about${TAB}about"
         wall)     wall_menu ;;
         profile)  profile_menu ;;
         keyboard) kb_menu ;;
+        fx)       value_menu fx_animation_ms "animations (ms)" 0 150 250 400 ;;
         wifi)     exec "$bin/wifi-menu" ;;
         bt)       exec "$bin/bt-menu" ;;
         audio)    exec "$bin/audio-mixer" ;;
