@@ -342,6 +342,30 @@ elif need zig; then
     fi
 fi
 
+step "zig: jerkprompt (text input with a counter)"
+if [ "$QUICK" = 1 ]; then
+    skip "--quick"
+elif need zig; then
+    if (cd src/jerkprompt && zig build-exe main.zig -target x86_64-linux-gnu -O ReleaseSafe -lc -femit-bin="$TMP/jerkprompt") >"$TMP/zig" 2>&1; then
+        ok "build"
+        [ -n "${CI_OUT:-}" ] && mkdir -p "$CI_OUT" && cp "$TMP/jerkprompt" "$CI_OUT/"
+        if command -v script >/dev/null; then
+            rm -f "$TMP/jp.out"
+            (sleep 0.8; printf 'my "box" 0123456789012345678'; sleep 0.3; printf '\177\r') |
+                timeout 10 script -qec "$TMP/jerkprompt --out $TMP/jp.out --max 16 --allow 'abcdefghijklmnopqrstuvwxyz0123456789 '" /dev/null >/dev/null 2>&1
+            if [ "$(cat "$TMP/jp.out" 2>/dev/null)" = "my box 01234567" ]; then
+                ok "filters characters, stops at --max, backspace"
+            else bad "jerkprompt input: got '$(cat "$TMP/jp.out" 2>/dev/null)'"; fi
+            rm -f "$TMP/jp.out"
+            (sleep 0.8; printf 'abc'; sleep 0.2; printf '\033') |
+                timeout 10 script -qec "$TMP/jerkprompt --out $TMP/jp.out" /dev/null >/dev/null 2>&1
+            if [ -e "$TMP/jp.out" ]; then bad "Esc must not save"; else ok "Esc cancels without saving"; fi
+        else skip "script (util-linux) missing"; fi
+    else
+        bad "build"; sed 's/^/        /' "$TMP/zig"
+    fi
+fi
+
 step "zig: sway-binds"
 if [ "$QUICK" = 1 ]; then
     skip "--quick"

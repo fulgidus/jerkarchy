@@ -24,10 +24,14 @@ if [ "$mode" = wallpaper ] || ! [ -x "$bin/jerksaver" ] || ! command -v wezterm 
     exec "$bin/jerkwall" --mode saver --title "$title" \
         --title-a {{ $t.accent | trimPrefix "#" }} --title-b {{ $t.accent2 | trimPrefix "#" }}
 fi
-# sway makes the jerkarchy-saver window fullscreen across all outputs.
-exec wezterm --config 'window_padding={left=0,right=0,top=0,bottom=0}' --config enable_tab_bar=false \
+# sway makes the jerkarchy-saver window fullscreen across all outputs. The
+# pointer hides after half a second still, for as long as the saver runs
+# (moving it ends the saver anyway).
+swaymsg -q "seat * hide_cursor 500"
+wezterm --config 'window_padding={left=0,right=0,top=0,bottom=0}' --config enable_tab_bar=false \
     start --always-new-process --class jerkarchy-saver -- \
     "$bin/jerksaver" "$mode" --title "$title" \
     --bg {{ $t.bg | trimPrefix "#" }} --fg {{ $t.fg_bright | trimPrefix "#" }} --dim {{ $t.fg_dim | trimPrefix "#" }} \
     --accent {{ $t.accent | trimPrefix "#" }} --accent2 {{ $t.accent2 | trimPrefix "#" }} \
     --ok {{ $t.ok | trimPrefix "#" }} --warn {{ $t.warn | trimPrefix "#" }}
+swaymsg -q "seat * hide_cursor 0"

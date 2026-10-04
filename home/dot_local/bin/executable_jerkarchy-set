@@ -66,12 +66,14 @@ reload_wall() {
 }
 
 reload_theme() {
+    # Wallpaper first: reloading waybar can take down processes it spawned
+    # (a menu opened from the bar), and the wallpaper restart was the casualty.
+    reload_wall                                # colours come from ~/.config/jerkwall/config
     swaymsg -q reload                          # borders (client.* colours)
-    pkill -USR2 -x waybar || true              # waybar reloads config + style.css
     makoctl reload 2>/dev/null || true
     # nwg-drawer reads its CSS at start: restart the resident instance.
     if pkill -f '^nwg-drawer -r'; then swaymsg -q exec "$HOME/.local/bin/drawer-daemon sway"; fi
-    reload_wall                                # colours come from ~/.config/jerkwall/config
+    pkill -USR2 -x waybar || true              # waybar reloads config + style.css (last)
     # wezterm watches its config; fuzzel, swaylock, bar-battery read theirs per run.
 }
 

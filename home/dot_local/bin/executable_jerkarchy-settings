@@ -31,6 +31,7 @@ I_FPS=$(printf '\363\260\224\233')       # U+F051B timer-outline
 I_SPEED=$(printf '\363\260\221\256')     # U+F046E run-fast
 I_POINTS=$(printf '\363\261\201\211')    # U+F1049 graph
 TAB=$(printf '\t')
+TITLE_CHARS="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ._:!?/-"
 
 pkill -f "^fuzzel --config $HOME/.config/fuzzel/bar-menu.ini" && exit 0
 
@@ -158,13 +159,14 @@ saver_menu() {
             "$I_SESSION  lock after         $(min_label lock_min)${TAB}lock" \
             "$I_BACK  back${TAB}back" | menu --prompt 'screensaver › ')
         case "$choice" in
-            now)   exec "$bin/screensaver" ;;
+            now)   "$bin/screensaver" ;;   # back here when it ends
             mode)  value_menu saver_mode "screensaver mode" wallpaper matrix bonsai city galaxy planets threebody random ;;
             title)
-                # free text (spaces allowed): whatever is typed, as typed
-                t=$(printf '' | fuzzel --config "$HOME/.config/fuzzel/bar-menu.ini" --dmenu --lines 0 \
-                        --prompt 'title › ' --placeholder "now: $(get saver_title) (none = no title)")
-                [ -n "$t" ] && "$bin/jerkarchy-set" saver_title "$t" >/dev/null ;;
+                # live "n left" counter; only characters the title font can draw type
+                if t=$("$bin/text-prompt" "title ›" 24 "$TITLE_CHARS" "$(get saver_title)" \
+                        "enter: save · esc: cancel · empty: no title"); then
+                    "$bin/jerkarchy-set" saver_title "${t:-none}" >/dev/null
+                fi ;;
             saver) value_menu saver_min "screensaver (min)" 0 1 2 5 10 15 30 ;;
             lock)  value_menu lock_min "lock (min)" 0 5 10 15 30 60 ;;
             back)  return ;;
@@ -194,27 +196,30 @@ bindings: Super+H"
 }
 
 while :; do
-    rows="$I_THEME  theme      $(get theme)${TAB}theme
-$I_WALL  wallpaper  $(get wall_contrast)× · $(get wall_fps) fps${TAB}wall
-$I_PROFILE  power      $("$bin/power-profile" get 2>/dev/null)${TAB}profile
-$I_WIFI  network${TAB}wifi
-$I_BT  bluetooth${TAB}bt
-$I_AUDIO  audio${TAB}audio"
+    # Grouped: how it looks, what it runs on, help. Headers do nothing.
+    rows="── look ──${TAB}hdr
+$I_THEME  theme       $(get theme)${TAB}theme
+$I_WALL  wallpaper   $(get wall_contrast)× · $(get wall_fps) fps${TAB}wall
+$I_SAVER  screensaver $(get saver_mode) · $(min_label saver_min) · lock $(min_label lock_min)${TAB}saver
+$I_FX  animations  slide $(ms_label slide_ms) · fade $(fx_label)${TAB}fx
+── system ──${TAB}hdr
+$I_PROFILE  power       $("$bin/power-profile" get 2>/dev/null)${TAB}profile
+$I_KEYS  keyboard    $(get kb_layout)${TAB}keyboard"
     command -v nwg-displays >/dev/null && rows="$rows
 $I_DISPLAY  displays${TAB}displays"
     rows="$rows
-$I_KEYS  keyboard   $(get kb_layout)${TAB}keyboard"
-    rows="$rows
-$I_FX  animations slide $(ms_label slide_ms) · fade $(fx_label)${TAB}fx
-$I_SAVER  screensaver $(min_label saver_min) · lock $(min_label lock_min)${TAB}saver"
-    rows="$rows
+$I_WIFI  network${TAB}wifi
+$I_BT  bluetooth${TAB}bt
+$I_AUDIO  audio${TAB}audio
 $I_NOTIFY  notifications${TAB}notify
+── help ──${TAB}hdr
 $I_KEYS  keybindings${TAB}keys
 $I_SESSION  session${TAB}session
 $I_INFO  about${TAB}about"
 
-    choice=$(printf '%s\n' "$rows" | menu --prompt 'settings › ' --lines 14)
+    choice=$(printf '%s\n' "$rows" | menu --prompt 'settings › ' --lines 20 --select-index 1)
     case "$choice" in
+        hdr)      ;;
         theme)    theme_menu ;;
         wall)     wall_menu ;;
         profile)  profile_menu ;;

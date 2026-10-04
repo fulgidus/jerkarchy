@@ -7,3 +7,4 @@ src/*/.zig-cache
 src/*/zig-out
 src/*/jerkslide
 src/*/jerksaver
+src/*/jerkprompt
