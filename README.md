@@ -21,7 +21,7 @@ jerkarchy is an opinionated desktop setup for Arch-based systems, built on
 curl -fsSL https://raw.githubusercontent.com/fulgidus/jerkarchy/main/install.sh | bash
 ```
 
-Or clone it and run `./install.sh`. Releases:
+Or clone it and run `./install.sh` (`--no-swayfx` for plain sway where SwayFX is available). The source ends up in `~/Documents/jerkarchy`. Releases:
 [github.com/fulgidus/jerkarchy/releases](https://github.com/fulgidus/jerkarchy/releases).
 
 That's it. That's the product. It installs some packages, runs
@@ -45,7 +45,7 @@ themes, a dev stack and a nice installer. jerkarchy gives you:
 | Workspaces that appear when you walk into them | yes | yes |
 | Installer | ISO, 5 questions | `curl \| bash`, 0 questions |
 | Wallpaper | a folder of images | a **live** Delaunay mesh that drifts and slowly shifts colour, written in Zig, GPU-drawn at 30 fps (CPU fallback), slows down on power-saver |
-| Themes | 20+ | 48: 19 classics from their upstream projects (Tokyo Night, Catppuccin, Gruvbox, Nord, Rosé Pine, …), 5 flags (queer, bi, trans, polyam, antifa) and 24 monochrome (12 hues × dark/light). The default is still cyan. |
+| Themes | 20+ | 49: Matte Billionaire (a parody of Omarchy's Matte Black, in Founding Patron gold), 19 classics from their upstream projects (Tokyo Night, Catppuccin, Gruvbox, Nord, Rosé Pine, …), 5 flags (queer, bi, trans, polyam, antifa) and 24 monochrome (12 hues × dark/light). The default is still cyan. |
 | Settings | ? | one drop-down (gear on the bar, `Super+,`): theme, wallpaper, power, network, … and a CLI, `jerkarchy-set` |
 | AI agents | built in | the author vibe-coded the whole thing, so: *built out* |
 | Funding | ~$15.5M pledged | $0 |

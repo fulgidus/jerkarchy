@@ -3,6 +3,17 @@
 Releases are tagged on `main` (gitflow, see AGENTS.md). The release workflow
 publishes the section for each version as its release notes.
 
+## v0.1.2
+
+- **Matte Billionaire (parody):** Omarchy's Matte Black, in Founding Patron
+  gold and dollar green. Our own palette.
+- **SwayFX by default where the repos carry it** (CachyOS), plain sway
+  elsewhere. Opt out at install with `--no-swayfx` (or `JERKARCHY_SWAYFX=0`),
+  or at runtime: Settings › animations › SwayFX effects. Re-running install.sh
+  with SwayFX installed no longer trips over sway/SwayFX conflicts.
+- **The source lives in `~/Documents/jerkarchy`** (XDG Documents); existing
+  installs are moved from `~/.local/share/jerkarchy` and chezmoi follows.
+
 ## v0.1.1
 
 - **Screensaver:** after 5 idle minutes (lock at 10; both settings, 0 = off),
