@@ -70,9 +70,70 @@ jobs:
           gh release create "$v" "$dir.tar.gz" "$dir.tar.gz.sha256" \
             --target "$GITHUB_SHA" --title "jerkarchy $v" --notes-file notes.md
 
-  pages:
+  # Every theme, rendered in a headless sway: attached to the release and kept
+  # as a workflow artifact. Doesn't block a release if it breaks.
+  screenshots:
     needs: check
     if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    container: archlinux:base
+    continue-on-error: true
+    permissions:
+      contents: write  # attach to the release
+    steps:
+      - name: Bootstrap git
+        run: pacman -Sy --noconfirm --needed git
+
+      - uses: actions/checkout@v4
+
+      - name: Pin pacman to the SNAPSHOT date
+        run: |
+          snap=$(tr - / < SNAPSHOT)
+          echo "Server = https://archive.archlinux.org/repos/${snap}/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist
+          pacman -Syyuu --noconfirm
+
+      - name: Install the desktop (headless) and tools
+        run: |
+          pacman -S --noconfirm --needed bash sway waybar wezterm fuzzel grim jq chezmoi zig wayland \
+            ttf-jetbrains-mono-nerd dbus mesa procps-ng libcap github-cli ffmpeg
+          setcap -r "$(command -v sway)"  # see the check job
+
+      - name: Build jerkwall and jerksaver (wallpaper, screensavers)
+        run: mkdir -p "$HOME/.local/bin" && ZIG=zig src/jerkwall/build.sh && ZIG=zig src/jerksaver/build.sh
+
+      - name: Render every theme
+        env:
+          XDG_RUNTIME_DIR: /tmp/xdg
+        run: |
+          mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
+          ci/screenshots.sh --gifs shots
+          ci/site-gallery.sh shots gallery-site
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: |
+            shots/*.png
+            shots/*.gif
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gallery
+          path: gallery-site
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          v=v$(cat VERSION)
+          tar -czf "jerkarchy-$v-screenshots.tar.gz" -C shots .  # PNGs + screensaver GIFs
+          gh release upload "$v" "jerkarchy-$v-screenshots.tar.gz" --clobber
+
+  pages:
+    needs: [check, screenshots]
+    # deploy even if the screenshots broke (the gallery is then left out)
+    if: always() && needs.check.result == 'success' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -82,6 +143,12 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Add the gallery (from the screenshots job)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: gallery
+          path: site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
