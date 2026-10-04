@@ -64,6 +64,8 @@ client.urgent           {{ $t.accent2 }}  {{ $t.bg }}  {{ $t.fg_bright }}  {{ $t
 for_window [app_id="sway-help"] floating enable, resize set 1100 800, move position center
 for_window [app_id="tui-float"] floating enable, resize set 900 600, move position center
 for_window [app_id="blueman-manager"] floating enable
+for_window [app_id="jerkarchy-prompt"] floating enable, sticky enable, border pixel 1
+for_window [app_id="jerkarchy-saver"] fullscreen enable global, border none
 for_window [app_id="audio-mixer"] floating enable, border pixel 1, sticky enable
 for_window [window_role="pop-up"] floating enable
 for_window [window_type="dialog"] floating enable
@@ -172,15 +174,24 @@ bindsym $mod+Alt+Down resize grow height 40px
 # ------------------------------------------------------------------
 # Workspaces
 # ------------------------------------------------------------------
-bindsym $mod+1 workspace number 1
-bindsym $mod+2 workspace number 2
-bindsym $mod+3 workspace number 3
-bindsym $mod+4 workspace number 4
-bindsym $mod+5 workspace number 5
-bindsym $mod+6 workspace number 6
-bindsym $mod+7 workspace number 7
-bindsym $mod+8 workspace number 8
-bindsym $mod+9 workspace number 9
+#: go to workspace 1 (slides)
+bindsym $mod+1 exec $bin/ws-go 1
+#: go to workspace 2 (slides)
+bindsym $mod+2 exec $bin/ws-go 2
+#: go to workspace 3 (slides)
+bindsym $mod+3 exec $bin/ws-go 3
+#: go to workspace 4 (slides)
+bindsym $mod+4 exec $bin/ws-go 4
+#: go to workspace 5 (slides)
+bindsym $mod+5 exec $bin/ws-go 5
+#: go to workspace 6 (slides)
+bindsym $mod+6 exec $bin/ws-go 6
+#: go to workspace 7 (slides)
+bindsym $mod+7 exec $bin/ws-go 7
+#: go to workspace 8 (slides)
+bindsym $mod+8 exec $bin/ws-go 8
+#: go to workspace 9 (slides)
+bindsym $mod+9 exec $bin/ws-go 9
 bindsym $mod+Alt+1 move container to workspace number 1
 bindsym $mod+Alt+2 move container to workspace number 2
 bindsym $mod+Alt+3 move container to workspace number 3
@@ -190,6 +201,10 @@ bindsym $mod+Alt+6 move container to workspace number 6
 bindsym $mod+Alt+7 move container to workspace number 7
 bindsym $mod+Alt+8 move container to workspace number 8
 bindsym $mod+Alt+9 move container to workspace number 9
+#: next workspace (touchpad, slides)
+bindgesture swipe:4:left exec $bin/sway-ws focus next
+#: previous workspace (touchpad, slides)
+bindgesture swipe:4:right exec $bin/sway-ws focus prev
 # Relative workspaces work like Hyprland's workspace +1/-1: sway-ws goes to
 # number N±1 and creates it if needed, so you can keep walking into new ones.
 #: previous workspace (N-1)
@@ -296,6 +311,9 @@ exec autotiling
 # Live Delaunay wallpaper (src/jerkwall); options in ~/.config/jerkwall/config
 # (from the theme and wall_* settings: jerkarchy-settings).
 exec $bin/jerkwall
+# Animations (workspace switch, open/close, resize) when running SwayFX; a
+# no-op on plain sway. exec_always: re-applied on reload (fx_animation_ms).
+exec_always $bin/sway-fx
 # XDG autostart entries (/etc/xdg/autostart, ~/.config/autostart): sway doesn't
 # run them itself. sway-session.target (~/.config/systemd/user) pulls in
 # systemd's xdg-desktop-autostart.target, which honours OnlyShowIn/NotShowIn.
@@ -305,4 +323,5 @@ exec mako
 exec /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec wl-paste --watch cliphist store
 exec $bin/drawer-daemon sway
-exec swayidle -w timeout 600 $bin/session-lock before-sleep $bin/session-lock
+# Idle: screensaver, then lock (saver_min / lock_min); restarted on reload.
+exec_always $bin/idle-daemon

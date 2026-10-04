@@ -1,0 +1,40 @@
+{{- $t := index .themes .theme -}}
+/* nwg-hello (login screen), written by greeter-sync into
+   /var/lib/jerkarchy/greeter (linked from /etc/nwg-hello). Same card as the
+   lock screen; the live wallpaper runs behind it. From the theme. */
+* {
+  font-family: "JetBrainsMono Nerd Font", monospace;
+  border-radius: 0;
+  box-shadow: none;
+  text-shadow: none;
+}
+window { background: transparent; }
+#form-wrapper {
+  background-color: {{ $t.bg }};
+  border: 1px solid {{ $t.border }};
+  border-top: 2px solid {{ $t.accent }};
+  padding: 28px 40px;
+}
+#welcome-label { font-size: 20px; color: {{ $t.fg_dim }}; }
+#clock-label   { font-size: 64px; font-weight: bold; color: {{ $t.accent }}; }
+#date-label    { font-size: 14px; color: {{ $t.fg_dim }}; }
+#form-label, label { color: {{ $t.fg }}; }
+entry, #password-entry, combobox button, #form-combo button {
+  background: {{ $t.bg_alt }};
+  color: {{ $t.fg_bright }};
+  caret-color: {{ $t.accent }};
+  border: 1px solid {{ $t.border }};
+  padding: 6px 10px;
+}
+entry:focus { border-color: {{ $t.accent }}; }
+button {
+  background: transparent;
+  color: {{ $t.fg }};
+  border: 1px solid {{ $t.border }};
+  padding: 6px 12px;
+}
+button:hover { color: {{ $t.bg }}; background: {{ $t.accent }}; border-color: {{ $t.accent }}; }
+#login-button { background: {{ $t.accent }}; color: {{ $t.bg }}; font-weight: bold; border: none; }
+#login-button:hover { background: {{ $t.accent2 }}; }
+#power-button { border: none; background: transparent; color: {{ $t.fg_dim }}; }
+#power-button:hover { color: {{ $t.accent }}; background: transparent; }

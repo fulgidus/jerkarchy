@@ -60,7 +60,9 @@ works if the thing actually works — so quality rules below are strict.
 .chezmoiroot      → "home": chezmoi's source lives in home/
 home/             dotfiles (chezmoi naming: dot_, executable_, private_, empty_, *.tmpl)
 src/<tool>/       source of compiled helpers (Zig) + build.sh; binaries are never committed
-                  (sway-binds: binding list; jerkwall: live Delaunay wallpaper)
+                  (sway-binds: binding list; jerkwall: live Delaunay wallpaper and
+                  screensaver; jerkslide: workspace slide; jerksaver: terminal
+                  screensavers; common/: shared Zig modules, e.g. the title font)
 install.sh        the whole installer; keep it short and readable
 SNAPSHOT          Arch Linux Archive date (YYYY-MM-DD) that builds install from
 ci/check.sh       all automated checks (local + GitHub Actions)
@@ -109,7 +111,8 @@ live; they change.
   (Intel), Ghostty, CachyOS (Framework sponsorship), mise (Omacom Foundation).
   Clean — sway/wlroots, waybar, fuzzel, mako, nwg-drawer, autotiling, wezterm,
   starship, swaylock, blueman, pwvucontrol (not in Arch repos), wiremix, shellcheck,
-  COSMIC, thunar (XFCE). Accepted as test-only tooling despite a hit: QEMU
+  COSMIC, thunar (XFCE), gtklock, greetd, nwg-hello, SwayFX (optional: not in Arch's repos; AUR, or the
+  CachyOS repo on CachyOS). Accepted as test-only tooling despite a hit: QEMU
   (Red Hat → IBM), github-cli (GitHub → Microsoft; CI release step only).
   Firefox (and so LibreWolf) is a lineage hit (Brendan Eich, Mozilla
   co-founder, is on the weird-guys list): the user's choice, never installed
@@ -237,7 +240,17 @@ live; they change.
   **cyan `#00f0ff`** (focus/accent), **magenta `#ff2b6d`** (alerts,
   discharging, performance), green `#00ff9f` (charging, power-saver), yellow
   `#ffcc00` (caffeine, warnings). Font: JetBrainsMono Nerd Font. Square
-  corners, 1–2 px borders, no animations (all themes).
+  corners, 1–2 px borders (all themes). Animations: the workspace slide
+  (jerkslide via `ws-go`, setting `slide_ms`) works on plain sway; SwayFX's
+  fade (`sway-fx`, `fx_animation_ms`) only when SwayFX runs. Plain sway, the
+  default, must keep working unchanged.
+- **Lock, login, screensaver look like the desktop:** the same card (square,
+  theme colours, accent top border, accent clock) over the wallpaper — gtklock
+  (`~/.config/gtklock`), nwg-hello on greetd (`greeter-sync` →
+  `/var/lib/jerkarchy/greeter`), jerkwall `--mode saver`. Screensavers
+  (`saver_mode`: wallpaper or jerksaver's terminal modes) all show the
+  `saver_title` in the 5×7 block font with the time; procedural, no
+  third-party art.
 - **Bar popups must look like the bar**: fuzzel drop-downs anchored top-right
   under the bar, styled by `home/dot_config/fuzzel/bar-menu.ini`
   (`wifi-menu`, `bt-menu` are the reference). No centered generic windows
@@ -259,6 +272,10 @@ live; they change.
   with `-target x86_64-linux-gnu`: Zig's linker can't handle the `.sframe`
   relocations in this system's `crt1.o`.
 - Each tool has a `build.sh` that builds and installs into `~/.local/bin`.
+- Shared code lives in `src/common/` and is passed as a module:
+  `--dep font -Mroot=main.zig -Mfont=../common/font5x7.zig`. Module flags
+  (`-O`, `-I`, C sources) apply to the **next** `-M`: put them before
+  `-Mroot` (an `-O` after it silently gave a 12 MB debug build).
 
 ## 9. README and other prose
 

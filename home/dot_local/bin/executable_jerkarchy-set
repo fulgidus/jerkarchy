@@ -12,10 +12,15 @@
 # Keys: theme, wall_contrast (0.5–4), wall_fps (1–60), wall_speed (0.1–5),
 #       wall_points (20–600), kb_layout (us | it,us | …), kb_variant (,intl | …),
 #       kb_options (grp:alt_shift_toggle | …). "none" clears kb_variant/kb_options.
+#       fx_animation_ms (0–2000; SwayFX only, 0 = off), slide_ms (workspace
+#       slide, 0–1000, 0 = off).
+#       saver_min, lock_min (idle minutes before screensaver / lock, 0–240, 0 = off),
+#       saver_mode (wallpaper matrix bonsai city galaxy planets threebody random),
+#       saver_title (≤ 24 of: letters digits space - _ . : ! ? / ; "none" = no title).
 set -e
 
 CFG="${XDG_CONFIG_HOME:-$HOME/.config}/chezmoi/chezmoi.toml"
-KEYS="theme wall_contrast wall_fps wall_speed wall_points kb_layout kb_variant kb_options"
+KEYS="theme wall_contrast wall_fps wall_speed wall_points kb_layout kb_variant kb_options fx_animation_ms slide_ms saver_min lock_min saver_mode saver_title"
 
 die() { echo "jerkarchy-set: $*" >&2; [ -t 2 ] || notify-send -a jerkarchy -u critical "jerkarchy-set" "$*" 2>/dev/null || true; exit 1; }
 
@@ -54,17 +59,21 @@ is_num() { printf '%s' "$1" | grep -qE '^[0-9]+(\.[0-9]+)?$'; }
 in_range() { awk -v x="$1" -v lo="$2" -v hi="$3" 'BEGIN { exit !(x >= lo && x <= hi) }'; }
 
 reload_wall() {
+    # Workspace-slide snapshots show the old look: drop them.
+    rm -f "${XDG_RUNTIME_DIR:-/tmp}"/jerkslide/*.ppm
     pkill -x jerkwall || true
     swaymsg -q exec "$HOME/.local/bin/jerkwall"
 }
 
 reload_theme() {
+    # Wallpaper first: reloading waybar can take down processes it spawned
+    # (a menu opened from the bar), and the wallpaper restart was the casualty.
+    reload_wall                                # colours come from ~/.config/jerkwall/config
     swaymsg -q reload                          # borders (client.* colours)
-    pkill -USR2 -x waybar || true              # waybar reloads config + style.css
     makoctl reload 2>/dev/null || true
     # nwg-drawer reads its CSS at start: restart the resident instance.
     if pkill -f '^nwg-drawer -r'; then swaymsg -q exec "$HOME/.local/bin/drawer-daemon sway"; fi
-    reload_wall                                # colours come from ~/.config/jerkwall/config
+    pkill -USR2 -x waybar || true              # waybar reloads config + style.css (last)
     # wezterm watches its config; fuzzel, swaylock, bar-battery read theirs per run.
 }
 
@@ -96,6 +105,17 @@ case "$key" in
         [ "$val" = none ] && val=""
         [ -z "$val" ] || printf '%s' "$val" | grep -qE '^[a-z0-9_:,+-]+$' || die "$key: letters, digits and _ : , + - only"
         toml="\"$val\"" ;;
+    saver_mode)
+        case "$val" in wallpaper|matrix|bonsai|city|galaxy|planets|threebody|random) ;;
+            *) die "saver_mode: wallpaper matrix bonsai city galaxy planets threebody random" ;; esac
+        toml="\"$val\"" ;;
+    saver_title)
+        [ "$val" = none ] && val=""
+        [ ${#val} -le 24 ] && ! printf '%s' "$val" | grep -q "[^A-Za-z0-9 ._:!?/-]" || die "saver_title: up to 24 of letters, digits, space and - _ . : ! ? /"
+        toml="\"$val\"" ;;
+    saver_min|lock_min) printf '%s' "$val" | grep -qE '^[0-9]+$' && in_range "$val" 0 240 || die "$key: minutes 0–240 (0 = off)"; toml=$val ;;
+    slide_ms) printf '%s' "$val" | grep -qE '^[0-9]+$' && in_range "$val" 0 1000 || die "slide_ms: integer 0–1000 (0 = off)"; toml=$val ;;
+    fx_animation_ms) printf '%s' "$val" | grep -qE '^[0-9]+$' && in_range "$val" 0 2000 || die "fx_animation_ms: integer 0–2000"; toml=$val ;;
     *) die "unknown key '$key' (keys: $KEYS)" ;;
 esac
 
@@ -108,13 +128,15 @@ edited=$(chezmoi status </dev/null 2>/dev/null | awk 'substr($0, 1, 1) != " " { 
 put "$key" "$toml"
 chezmoi apply --no-tty </dev/null >/dev/null 2>"${XDG_RUNTIME_DIR:-/tmp}/jerkarchy-set.log" ||
     die "chezmoi apply failed (see ${XDG_RUNTIME_DIR:-/tmp}/jerkarchy-set.log; chezmoi diff shows local edits)"
+# The login screen follows theme, wallpaper and keyboard (no-op without greetd).
+"$HOME/.local/bin/greeter-sync" 2>/dev/null || true
 
 # Reload only inside a running sway session.
 if [ -n "${SWAYSOCK:-}" ] && swaymsg -t get_version >/dev/null 2>&1; then
     case "$key" in
         theme) reload_theme ;;
         wall_*) reload_wall ;;
-        kb_*)   swaymsg -q reload ;;
+        kb_*|fx_*|saver_min|lock_min) swaymsg -q reload ;;
     esac
 fi
 echo "$key = $val"

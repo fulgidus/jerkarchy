@@ -1,0 +1,13 @@
+#!/bin/sh
+# sway-fx — eye candy when the compositor is SwayFX (a sway fork with
+# animations; jerkarchy's default is plain sway, which has none). Run by sway
+# on start and on every reload (exec_always), so settings apply on reload.
+# On plain sway it does nothing: SwayFX-only commands would be config errors.
+# Setting: fx_animation_ms (workspace switch, open/close, resize; 0 = off).
+case "$(sway --version 2>/dev/null)" in
+    *[Ss]way[Ff][Xx]*) ;;
+    *) exit 0 ;;
+esac
+ms=$(chezmoi execute-template '{{ .fx_animation_ms }}' 2>/dev/null)
+case "$ms" in ''|*[!0-9]*) ms=250 ;; esac
+swaymsg -q "animation_duration_ms $ms"

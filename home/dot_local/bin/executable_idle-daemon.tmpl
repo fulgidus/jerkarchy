@@ -1,0 +1,14 @@
+#!/bin/sh
+# idle-daemon — (re)start swayidle with jerkarchy's idle timeline, from the
+# saver_min / lock_min settings (0 = off): screensaver first, lock later,
+# lock before sleep. Run by sway on start and every reload (exec_always), so
+# changed settings apply on reload. Waybar's caffeine item inhibits it all.
+bin="$HOME/.local/bin"
+saver={{ .saver_min }}
+lock={{ .lock_min }}
+pkill -x swayidle
+set -- -w
+[ "$saver" -gt 0 ] && set -- "$@" timeout $((saver * 60)) "$bin/screensaver" \
+    resume "pkill -f '^$bin/jerkwall --mode saver'; pkill -x jerksaver"
+[ "$lock" -gt 0 ] && set -- "$@" timeout $((lock * 60)) "$bin/session-lock"
+exec swayidle "$@" before-sleep "$bin/session-lock"

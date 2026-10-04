@@ -19,6 +19,7 @@
 //! Defaults match jerkarchy's palette: bg 0a0a0f, a 00f0ff (cyan), b ff2b6d (magenta).
 
 const std = @import("std");
+const font = @import("font");
 const c = @cImport({
     @cDefine("_GNU_SOURCE", {}); // memfd_create
     @cInclude("wayland-client.h");
@@ -66,7 +67,7 @@ fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
 }
 
 fn usage() noreturn {
-    std.debug.print("usage: jerkwall [--fps N] [--points N] [--speed X] [--contrast X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB] [--stops RRGGBB,RRGGBB,...] [--at S] [--frame W H FILE.png]\n", .{});
+    std.debug.print("usage: jerkwall [--fps N] [--points N] [--speed X] [--contrast X] [--bg RRGGBB] [--a RRGGBB] [--b RRGGBB] [--stops RRGGBB,RRGGBB,...] [--mode wallpaper|saver] [--title TEXT] [--title-a RRGGBB] [--title-b RRGGBB] [--at S] [--frame W H FILE.png]\n", .{});
     std.process.exit(2);
 }
 
@@ -350,6 +351,91 @@ fn fillTri(px: []u32, w: usize, h: usize, a: V, b: V, cc: V, color: u32) void {
 
 var compositor: ?*c.wl_compositor = null;
 var shm: ?*c.wl_shm = null;
+
+// --mode saver: the same scene as a screensaver. Overlay layer, keyboard
+// grabbed, cursor hidden; any key, click, scroll or real pointer movement
+// exits (after a short grace period, so the motion that started it doesn't).
+var saver = false;
+var saver_title: []const u8 = "";
+var col_title_a: Rgb = hex(0x00f0ff);
+var col_title_b: Rgb = hex(0xff2b6d);
+var saver_start: f64 = 0;
+var seat: ?*c.wl_seat = null;
+var pointer: ?*c.wl_pointer = null;
+var keyboard: ?*c.wl_keyboard = null;
+var ptr_x0: f64 = -1;
+var ptr_y0: f64 = -1;
+
+fn saverDismiss() void {
+    if (now() - saver_start < 0.8) return;
+    std.process.exit(0);
+}
+fn ptrEnter(_: ?*anyopaque, p: ?*c.wl_pointer, serial: u32, _: ?*c.wl_surface, _: c.wl_fixed_t, _: c.wl_fixed_t) callconv(.c) void {
+    c.wl_pointer_set_cursor(p, serial, null, 0, 0); // hide the cursor
+}
+fn ptrLeave(_: ?*anyopaque, _: ?*c.wl_pointer, _: u32, _: ?*c.wl_surface) callconv(.c) void {}
+fn ptrMotion(_: ?*anyopaque, _: ?*c.wl_pointer, _: u32, fx: c.wl_fixed_t, fy: c.wl_fixed_t) callconv(.c) void {
+    const x = c.wl_fixed_to_double(fx);
+    const y = c.wl_fixed_to_double(fy);
+    if (ptr_x0 < 0) {
+        ptr_x0 = x;
+        ptr_y0 = y;
+        return;
+    }
+    // A bumped desk isn't a user: require a real move.
+    if (@abs(x - ptr_x0) + @abs(y - ptr_y0) > 24) saverDismiss();
+}
+fn ptrButton(_: ?*anyopaque, _: ?*c.wl_pointer, _: u32, _: u32, _: u32, _: u32) callconv(.c) void {
+    saverDismiss();
+}
+fn ptrAxis(_: ?*anyopaque, _: ?*c.wl_pointer, _: u32, _: u32, _: c.wl_fixed_t) callconv(.c) void {
+    saverDismiss();
+}
+fn ptrFrame(_: ?*anyopaque, _: ?*c.wl_pointer) callconv(.c) void {}
+fn ptrAxisSource(_: ?*anyopaque, _: ?*c.wl_pointer, _: u32) callconv(.c) void {}
+fn ptrAxisStop(_: ?*anyopaque, _: ?*c.wl_pointer, _: u32, _: u32) callconv(.c) void {}
+fn ptrAxisDiscrete(_: ?*anyopaque, _: ?*c.wl_pointer, _: u32, _: i32) callconv(.c) void {}
+const pointer_listener = c.wl_pointer_listener{
+    .enter = ptrEnter,
+    .leave = ptrLeave,
+    .motion = ptrMotion,
+    .button = ptrButton,
+    .axis = ptrAxis,
+    .frame = ptrFrame,
+    .axis_source = ptrAxisSource,
+    .axis_stop = ptrAxisStop,
+    .axis_discrete = ptrAxisDiscrete,
+};
+fn kbKeymap(_: ?*anyopaque, _: ?*c.wl_keyboard, _: u32, fd: i32, _: u32) callconv(.c) void {
+    _ = c.close(fd);
+}
+fn kbEnter(_: ?*anyopaque, _: ?*c.wl_keyboard, _: u32, _: ?*c.wl_surface, _: [*c]c.wl_array) callconv(.c) void {}
+fn kbLeave(_: ?*anyopaque, _: ?*c.wl_keyboard, _: u32, _: ?*c.wl_surface) callconv(.c) void {}
+fn kbKey(_: ?*anyopaque, _: ?*c.wl_keyboard, _: u32, _: u32, _: u32, state: u32) callconv(.c) void {
+    if (state == c.WL_KEYBOARD_KEY_STATE_PRESSED) saverDismiss();
+}
+fn kbModifiers(_: ?*anyopaque, _: ?*c.wl_keyboard, _: u32, _: u32, _: u32, _: u32, _: u32) callconv(.c) void {}
+fn kbRepeat(_: ?*anyopaque, _: ?*c.wl_keyboard, _: i32, _: i32) callconv(.c) void {}
+const keyboard_listener = c.wl_keyboard_listener{
+    .keymap = kbKeymap,
+    .enter = kbEnter,
+    .leave = kbLeave,
+    .key = kbKey,
+    .modifiers = kbModifiers,
+    .repeat_info = kbRepeat,
+};
+fn seatCaps(_: ?*anyopaque, s_: ?*c.wl_seat, caps: u32) callconv(.c) void {
+    if (caps & c.WL_SEAT_CAPABILITY_POINTER != 0 and pointer == null) {
+        pointer = c.wl_seat_get_pointer(s_);
+        _ = c.wl_pointer_add_listener(pointer, &pointer_listener, null);
+    }
+    if (caps & c.WL_SEAT_CAPABILITY_KEYBOARD != 0 and keyboard == null) {
+        keyboard = c.wl_seat_get_keyboard(s_);
+        _ = c.wl_keyboard_add_listener(keyboard, &keyboard_listener, null);
+    }
+}
+fn seatName(_: ?*anyopaque, _: ?*c.wl_seat, _: [*c]const u8) callconv(.c) void {}
+const seat_listener = c.wl_seat_listener{ .capabilities = seatCaps, .name = seatName };
 var layer_shell: ?*c.zwlr_layer_shell_v1 = null;
 
 const Buffer = struct {
@@ -521,6 +607,16 @@ fn renderGpu(out: *Output, w: usize, h: usize) void {
             }) catch return;
         }
     }
+    titleRects(w, h);
+    for (trects.items) |r| {
+        const xa = r.x / fw * 2 - 1;
+        const xb = (r.x + r.w) / fw * 2 - 1;
+        const ya = 1 - r.y / fh * 2;
+        const yb = 1 - (r.y + r.h) / fh * 2;
+        for ([6][2]f64{ .{ xa, ya }, .{ xb, ya }, .{ xb, yb }, .{ xa, ya }, .{ xb, yb }, .{ xa, yb } }) |v| {
+            out.gl_verts.appendSlice(gpa, &.{ @floatCast(v[0]), @floatCast(v[1]), @floatCast(r.col.r), @floatCast(r.col.g), @floatCast(r.col.b) }) catch return;
+        }
+    }
 
     c.wl_surface_set_buffer_scale(out.surface, scale);
     c.glViewport(0, 0, @intCast(w), @intCast(h));
@@ -577,6 +673,43 @@ fn ensureBuffer(b: *Buffer, w: usize, h: usize) !void {
 }
 
 /// Draw the current scene into an XRGB8888 pixel buffer.
+/// Saver title (and the time under it) as solid rectangles, in pixels of a
+/// w×h frame: the 5×7 block font, centred, with a soft shadow. Shared by
+/// the GPU (two triangles each) and CPU (fills) paths.
+const TRect = struct { x: f64, y: f64, w: f64, h: f64, col: Rgb };
+var trects: std.ArrayList(TRect) = .empty;
+fn titleRects(w: usize, h: usize) void {
+    trects.clearRetainingCapacity();
+    if (!saver or saver_title.len == 0) return;
+    const fw: f64 = @floatFromInt(w);
+    const fh: f64 = @floatFromInt(h);
+    const tw: f64 = @floatFromInt(font.textWidth(saver_title));
+    const p = @max(2, @floor(@min(fw * 0.5 / tw, fh * 0.13 / 7)));
+    const x0 = @floor((fw - tw * p) / 2);
+    const y0 = @floor(fh / 2 - 3.5 * p);
+    var tbuf: [16]u8 = undefined;
+    var tt: c.time_t = c.time(null);
+    var tm: c.struct_tm = undefined;
+    _ = c.localtime_r(&tt, &tm);
+    const clock = tbuf[0..c.strftime(&tbuf, tbuf.len, "%H:%M", &tm)];
+    const q = @max(2, @floor(p / 3));
+    const cx0 = @floor((fw - @as(f64, @floatFromInt(font.textWidth(clock))) * q) / 2);
+    const cy0 = y0 + 9 * p;
+    for (0..2) |pass| { // 0: shadow, 1: glyphs
+        const off: f64 = if (pass == 0) @max(1, @floor(p / 4)) else 0;
+        for (saver_title, 0..) |chr, i| for (0..font.h) |fy| for (0..font.w) |fx| {
+            if (!font.pixel(chr, fx, fy)) continue;
+            const col = if (pass == 0) mix(col_bg, hex(0x000000), 0.5) else mix(col_title_a, col_title_b, @as(f64, @floatFromInt(fy)) / 10);
+            trects.append(gpa, .{ .x = x0 + @as(f64, @floatFromInt(i * (font.w + 1) + fx)) * p + off, .y = y0 + @as(f64, @floatFromInt(fy)) * p + off, .w = p, .h = p, .col = col }) catch return;
+        };
+        for (clock, 0..) |chr, i| for (0..font.h) |fy| for (0..font.w) |fx| {
+            if (!font.pixel(chr, fx, fy)) continue;
+            const col = if (pass == 0) mix(col_bg, hex(0x000000), 0.5) else mix(col_bg, hex(0xffffff), 0.75);
+            trects.append(gpa, .{ .x = cx0 + @as(f64, @floatFromInt(i * (font.w + 1) + fx)) * q + off / 2, .y = cy0 + @as(f64, @floatFromInt(fy)) * q + off / 2, .w = q, .h = q, .col = col }) catch return;
+        };
+    }
+}
+
 fn drawFrame(px: []u32, w: usize, h: usize, verts: *std.ArrayList(V), tris: *std.ArrayList(Tri)) !void {
     const fw: f64 = @floatFromInt(w);
     const fh: f64 = @floatFromInt(h);
@@ -586,6 +719,34 @@ fn drawFrame(px: []u32, w: usize, h: usize, verts: *std.ArrayList(V), tris: *std
     @memset(px, pack(col_bg));
     for (tris.items) |tr| {
         fillTri(px, w, h, verts.items[tr.a], verts.items[tr.b], verts.items[tr.c], pack(facetRgb(tr, fw, fh)));
+    }
+    titleRects(w, h);
+    for (trects.items) |r| {
+        const xa: usize = @intFromFloat(std.math.clamp(r.x, 0, fw));
+        const xb: usize = @intFromFloat(std.math.clamp(r.x + r.w, 0, fw));
+        const ya: usize = @intFromFloat(std.math.clamp(r.y, 0, fh));
+        const yb: usize = @intFromFloat(std.math.clamp(r.y + r.h, 0, fh));
+        for (ya..yb) |y| @memset(px[y * w + xa .. y * w + xb], pack(r.col));
+    }
+}
+
+/// Write XRGB8888 pixels as a binary PPM (P6).
+fn writePpm(path: [*:0]const u8, px: []const u32, w: usize, h: usize) !void {
+    const f = c.fopen(path, "wb") orelse return error.OpenFailed;
+    defer _ = c.fclose(f);
+    var hdr: [64]u8 = undefined;
+    const head = std.fmt.bufPrint(&hdr, "P6\n{d} {d}\n255\n", .{ w, h }) catch unreachable;
+    if (c.fwrite(head.ptr, 1, head.len, f) != head.len) return error.WriteFailed;
+    var row = try gpa.alloc(u8, w * 3);
+    defer gpa.free(row);
+    for (0..h) |y| {
+        for (0..w) |x| {
+            const p = px[y * w + x];
+            row[x * 3] = @truncate(p >> 16);
+            row[x * 3 + 1] = @truncate(p >> 8);
+            row[x * 3 + 2] = @truncate(p);
+        }
+        if (c.fwrite(row.ptr, 1, row.len, f) != row.len) return error.WriteFailed;
     }
 }
 
@@ -721,16 +882,21 @@ fn setupOutput(out: *Output) void {
     const comp = compositor orelse return;
     const shell = layer_shell orelse return;
     out.surface = c.wl_compositor_create_surface(comp);
-    // Input-transparent: an empty input region passes clicks to the desktop.
-    const region = c.wl_compositor_create_region(comp);
-    c.wl_surface_set_input_region(out.surface, region);
-    c.wl_region_destroy(region);
-    out.layer = c.zwlr_layer_shell_v1_get_layer_surface(shell, out.surface, out.wl_output, c.ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND, "wallpaper");
+    if (!saver) {
+        // Input-transparent: an empty input region passes clicks to the desktop.
+        const region = c.wl_compositor_create_region(comp);
+        c.wl_surface_set_input_region(out.surface, region);
+        c.wl_region_destroy(region);
+    }
+    out.layer = c.zwlr_layer_shell_v1_get_layer_surface(shell, out.surface, out.wl_output,
+        if (saver) c.ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY else c.ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND,
+        if (saver) "jerkwall-saver" else "wallpaper");
     _ = c.zwlr_layer_surface_v1_add_listener(out.layer, &layer_listener, out);
     c.zwlr_layer_surface_v1_set_anchor(out.layer, c.ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP | c.ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM |
         c.ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT | c.ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
     c.zwlr_layer_surface_v1_set_size(out.layer, 0, 0);
     c.zwlr_layer_surface_v1_set_exclusive_zone(out.layer, -1);
+    if (saver) c.zwlr_layer_surface_v1_set_keyboard_interactivity(out.layer, c.ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE);
     c.wl_surface_commit(out.surface);
 }
 
@@ -742,6 +908,9 @@ fn registryGlobal(_: ?*anyopaque, reg: ?*c.wl_registry, name: u32, iface: [*c]co
         shm = @ptrCast(c.wl_registry_bind(reg, name, &c.wl_shm_interface, 1));
     } else if (std.mem.eql(u8, i, "zwlr_layer_shell_v1")) {
         layer_shell = @ptrCast(c.wl_registry_bind(reg, name, &c.zwlr_layer_shell_v1_interface, @min(version, 4)));
+    } else if (saver and std.mem.eql(u8, i, "wl_seat") and seat == null) {
+        seat = @ptrCast(c.wl_registry_bind(reg, name, &c.wl_seat_interface, @min(version, 5)));
+        _ = c.wl_seat_add_listener(seat, &seat_listener, null);
     } else if (std.mem.eql(u8, i, "wl_output")) {
         const wo: *c.wl_output = @ptrCast(c.wl_registry_bind(reg, name, &c.wl_output_interface, @min(version, 3)) orelse return);
         const out = gpa.create(Output) catch fatal("out of memory", .{});
@@ -860,7 +1029,8 @@ pub fn main(init: std.process.Init.Minimal) !void {
             // (negative = past). For previews and tests.
             frame_offset = std.fmt.parseFloat(f64, v) catch usage();
         } else if (std.mem.eql(u8, k, "--frame")) {
-            // --frame W H FILE: render the frame for "now" to a PNG and exit.
+            // --frame W H FILE: render the frame for "now" to a PNG (or a PPM,
+            // if FILE ends in .ppm) and exit.
             if (i + 3 >= argv.len) usage();
             frame_w = std.fmt.parseInt(usize, v, 10) catch usage();
             frame_h = std.fmt.parseInt(usize, std.mem.span(argv[i + 2]), 10) catch usage();
@@ -888,6 +1058,15 @@ pub fn main(init: std.process.Init.Minimal) !void {
             col_a = parseHex(v);
         } else if (std.mem.eql(u8, k, "--b")) {
             col_b = parseHex(v);
+        } else if (std.mem.eql(u8, k, "--title")) {
+            if (!font.supported(v)) usage();
+            saver_title = v;
+        } else if (std.mem.eql(u8, k, "--title-a")) {
+            col_title_a = parseHex(v);
+        } else if (std.mem.eql(u8, k, "--title-b")) {
+            col_title_b = parseHex(v);
+        } else if (std.mem.eql(u8, k, "--mode")) {
+            if (std.mem.eql(u8, v, "saver")) saver = true else if (!std.mem.eql(u8, v, "wallpaper")) usage();
         } else if (std.mem.eql(u8, k, "--stops")) {
             n_stops = 0;
             var it = std.mem.splitScalar(u8, v, ',');
@@ -921,10 +1100,16 @@ pub fn main(init: std.process.Init.Minimal) !void {
             return;
         }
         try drawFrame(px, frame_w, frame_h, &verts, &tris);
-        writePng(path, px, frame_w, frame_h) catch |err| fatal("writing {s}: {s}", .{ path, @errorName(err) });
+        // A .ppm path gets a PPM (jerkslide reads those; cheaper than PNG).
+        const write = if (std.mem.endsWith(u8, std.mem.span(path), ".ppm")) &writePpm else &writePng;
+        write(path, px, frame_w, frame_h) catch |err| fatal("writing {s}: {s}", .{ path, @errorName(err) });
         return;
     }
 
+    if (saver) {
+        opt_speed *= 3; // livelier than the wallpaper it replaces
+        saver_start = now();
+    }
     const display = c.wl_display_connect(null) orelse fatal("cannot connect to Wayland display", .{});
     const registry = c.wl_display_get_registry(display);
     _ = c.wl_registry_add_listener(registry, &registry_listener, null);

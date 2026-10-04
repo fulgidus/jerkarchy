@@ -197,9 +197,10 @@ fn parseConfig(arena: Allocator, lines: []const []const u8) ![]Bind {
             try modes.append(arena, if (modes.items.len > 0) modes.items[modes.items.len - 1] else "default");
             continue;
         }
-        if (!std.mem.startsWith(u8, line, "bindsym ")) continue;
+        const gesture = std.mem.startsWith(u8, line, "bindgesture ");
+        if (!std.mem.startsWith(u8, line, "bindsym ") and !gesture) continue;
 
-        const expanded = try expand(arena, line["bindsym ".len..], vars.items);
+        const expanded = try expand(arena, line[(if (gesture) "bindgesture ".len else "bindsym ".len)..], vars.items);
         var toks = std.mem.tokenizeAny(u8, expanded, " \t");
         var locked = false;
         var release = false;
@@ -215,6 +216,24 @@ fn parseConfig(arena: Allocator, lines: []const []const u8) ![]Bind {
         }
         if (combo.len == 0) continue;
         const command = trimmed(toks.rest());
+
+        // bindgesture swipe:4:left → "4-finger swipe left" (no modifiers)
+        if (gesture) {
+            var g = std.mem.splitScalar(u8, combo, ':');
+            const kind = g.next() orelse continue;
+            const fingers = g.next() orelse "";
+            const way = g.next() orelse "";
+            try binds.append(arena, .{
+                .line = start_line,
+                .mode = if (modes.items.len > 0) modes.items[modes.items.len - 1] else "default",
+                .mods = &.{},
+                .key = try std.fmt.allocPrint(arena, "{s}-finger {s} {s}", .{ fingers, kind, way }),
+                .locked = locked,
+                .release = release,
+                .command = command,
+            });
+            continue;
+        }
 
         var parts: std.ArrayList([]const u8) = .empty;
         var p = std.mem.splitScalar(u8, combo, '+');

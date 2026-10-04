@@ -1,0 +1,37 @@
+{{- $t := index .themes .theme -}}
+#!/bin/sh
+# screensaver [MODE] — full screen, on top of everything, with a big title
+# (saver_title) and the time. MODE (default: the saver_mode setting):
+#   wallpaper   the live wallpaper (jerkwall --mode saver)
+#   matrix bonsai city galaxy planets threebody   terminal art (jerksaver,
+#               in a full-screen wezterm), all procedural, theme colours
+#   random      one of the above
+# Any key, click, scroll or real mouse move ends it. Started by swayidle
+# (idle-daemon) or Settings › screensaver; a second start does nothing.
+bin="$HOME/.local/bin"
+mode=${1:-{{ .saver_mode }}}
+title='{{ .saver_title | replace "'" "" }}'
+pgrep -f "^$bin/jerkwall --mode saver" >/dev/null && exit 0
+pgrep -x jerksaver >/dev/null && exit 0
+
+if [ "$mode" = random ]; then
+    set -- wallpaper matrix bonsai city galaxy planets threebody
+    shift $(( $(od -An -N2 -tu2 /dev/urandom) % $# ))
+    mode=$1
+fi
+
+if [ "$mode" = wallpaper ] || ! [ -x "$bin/jerksaver" ] || ! command -v wezterm >/dev/null; then
+    exec "$bin/jerkwall" --mode saver --title "$title" \
+        --title-a {{ $t.accent | trimPrefix "#" }} --title-b {{ $t.accent2 | trimPrefix "#" }}
+fi
+# sway makes the jerkarchy-saver window fullscreen across all outputs. The
+# pointer hides after half a second still, for as long as the saver runs
+# (moving it ends the saver anyway).
+swaymsg -q "seat * hide_cursor 500"
+wezterm --config 'window_padding={left=0,right=0,top=0,bottom=0}' --config enable_tab_bar=false \
+    start --always-new-process --class jerkarchy-saver -- \
+    "$bin/jerksaver" "$mode" --title "$title" \
+    --bg {{ $t.bg | trimPrefix "#" }} --fg {{ $t.fg_bright | trimPrefix "#" }} --dim {{ $t.fg_dim | trimPrefix "#" }} \
+    --accent {{ $t.accent | trimPrefix "#" }} --accent2 {{ $t.accent2 | trimPrefix "#" }} \
+    --ok {{ $t.ok | trimPrefix "#" }} --warn {{ $t.warn | trimPrefix "#" }}
+swaymsg -q "seat * hide_cursor 0"

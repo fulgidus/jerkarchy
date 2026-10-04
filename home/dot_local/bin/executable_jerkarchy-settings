@@ -8,7 +8,15 @@
 
 bin="$HOME/.local/bin"
 # Rows are "<shown> TAB <id>": fuzzel shows column 1 and prints column 2.
-menu() { fuzzel --config "$HOME/.config/fuzzel/bar-menu.ini" --dmenu --with-nth=1 --accept-nth=2 "$@"; }
+# Right (fuzzel exit 10) opens like Enter; Left (exit 11) answers "back".
+INI="$HOME/.config/fuzzel/settings-menu.ini"
+menu() {
+    r=$(fuzzel --config "$INI" --dmenu --with-nth=1 --accept-nth=2 "$@"); rc=$?
+    case $rc in
+        0|10) printf '%s\n' "$r" ;;
+        11)   echo back ;;
+    esac
+}
 
 # Material Design Nerd Font icons as UTF-8 byte escapes (no raw glyphs in files).
 I_THEME=$(printf '\363\260\217\230')     # U+F03D8 palette
@@ -19,6 +27,8 @@ I_BT=$(printf '\363\260\202\257')        # U+F00AF bluetooth
 I_AUDIO=$(printf '\363\260\225\276')     # U+F057E volume-high
 I_DISPLAY=$(printf '\363\260\215\271')   # U+F0379 monitor
 I_KEYS=$(printf '\363\260\214\214')      # U+F030C keyboard
+I_SAVER=$(printf '\363\260\215\271')     # U+F0379 monitor
+I_FX=$(printf '\363\260\244\225')        # U+F0915 transition
 I_SESSION=$(printf '\363\260\220\245')   # U+F0425 power
 I_INFO=$(printf '\363\260\213\275')      # U+F02FD information-outline
 I_NOTIFY=$(printf '\363\260\202\232')    # U+F009A bell
@@ -29,8 +39,9 @@ I_FPS=$(printf '\363\260\224\233')       # U+F051B timer-outline
 I_SPEED=$(printf '\363\260\221\256')     # U+F046E run-fast
 I_POINTS=$(printf '\363\261\201\211')    # U+F1049 graph
 TAB=$(printf '\t')
+TITLE_CHARS="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ._:!?/-"
 
-pkill -f "^fuzzel --config $HOME/.config/fuzzel/bar-menu.ini" && exit 0
+pkill -f "^fuzzel --config $HOME/.config/fuzzel/(bar|settings)-menu.ini" && exit 0
 
 get() { "$bin/jerkarchy-set" get "$1"; }
 mark() { [ "$1" = "$2" ] && printf '%s' "$I_CHECK" || printf ' '; }   # mark CURRENT CANDIDATE
@@ -74,8 +85,8 @@ value_menu() {
     key=$1 label=$2; shift 2
     cur=$(get "$key")
     choice=$({ for v in "$@"; do printf '%s %s\n' "$(mark "$cur" "$v")" "$v"; done; printf '%s  back\n' "$I_BACK"; } |
-             fuzzel --config "$HOME/.config/fuzzel/bar-menu.ini" --dmenu \
-                 --prompt "$label › " --placeholder "now $cur: pick or type a value" | awk '{ print $NF }')
+             { r=$(fuzzel --config "$INI" --dmenu --prompt "$label › " --placeholder "now $cur: pick or type a value"); rc=$?
+               case $rc in 0|10) printf '%s\n' "$r" ;; 11) echo back ;; esac; } | awk '{ print $NF }')
     case "$choice" in
         "")   exit 0 ;;
         back) return ;;
@@ -119,6 +130,59 @@ kb_menu() {
     done
 }
 
+# Animations exist only on SwayFX; say so instead of offering a dead knob.
+fx_label() {
+    case "$(sway --version 2>/dev/null)" in
+        *[Ss]way[Ff][Xx]*) ms_label fx_animation_ms ;;
+        *) echo "needs SwayFX" ;;
+    esac
+}
+
+ms_label() { m=$(get "$1"); [ "$m" = 0 ] && echo off || echo "${m}ms"; }
+
+anim_menu() {
+    while :; do
+        choice=$(printf '%s\n' \
+            "$I_FX  workspace slide  $(ms_label slide_ms)${TAB}slide" \
+            "$I_FX  SwayFX fade      $(fx_label)${TAB}fade" \
+            "$I_BACK  back${TAB}back" | menu --prompt 'animations › ')
+        case "$choice" in
+            slide) value_menu slide_ms "slide (ms)" 0 150 220 300 400 ;;
+            fade)  value_menu fx_animation_ms "fade (ms)" 0 150 250 400 ;;
+            back)  return ;;
+            *)     exit 0 ;;
+        esac
+    done
+}
+
+min_label() { m=$(get "$1"); [ "$m" = 0 ] && echo off || echo "${m}m"; }
+
+saver_menu() {
+    while :; do
+        choice=$(printf '%s\n' \
+            "$I_SAVER  start now${TAB}now" \
+            "$I_SAVER  mode               $(get saver_mode)${TAB}mode" \
+            "$I_SAVER  title              $(get saver_title)${TAB}title" \
+            "$I_SAVER  screensaver after  $(min_label saver_min)${TAB}saver" \
+            "$I_SESSION  lock after         $(min_label lock_min)${TAB}lock" \
+            "$I_BACK  back${TAB}back" | menu --prompt 'screensaver › ')
+        case "$choice" in
+            now)   "$bin/screensaver" ;;   # back here when it ends
+            mode)  value_menu saver_mode "screensaver mode" wallpaper matrix bonsai city galaxy planets threebody random ;;
+            title)
+                # live "n left" counter; only characters the title font can draw type
+                if t=$("$bin/text-prompt" "title ›" 24 "$TITLE_CHARS" "$(get saver_title)" \
+                        "enter: save · esc: cancel · empty: no title"); then
+                    "$bin/jerkarchy-set" saver_title "${t:-none}" >/dev/null
+                fi ;;
+            saver) value_menu saver_min "screensaver (min)" 0 1 2 5 10 15 30 ;;
+            lock)  value_menu lock_min "lock (min)" 0 5 10 15 30 60 ;;
+            back)  return ;;
+            *)     exit 0 ;;
+        esac
+    done
+}
+
 profile_menu() {
     cur=$("$bin/power-profile" get 2>/dev/null)
     choice=$({ for p in power-saver balanced performance; do printf '%s %s\t%s\n' "$(mark "$cur" "$p")" "$p" "$p"; done; back_row; } |
@@ -132,36 +196,55 @@ profile_menu() {
 
 about() {
     src=$(chezmoi source-path 2>/dev/null)
-    ver=$(git -C "${src%/home}" describe --tags --always --dirty 2>/dev/null || echo unknown)
+    repo=${src%/home}
+    # "v0.1.0" on a release; past one: "v0.1.0 + 15 unreleased changes
+    # (develop, 7adb20e)" — git describe's v0.1.0-15-g7adb20e, spelled out.
+    d=$(git -C "$repo" describe --tags --dirty 2>/dev/null)
+    branch=$(git -C "$repo" branch --show-current 2>/dev/null)
+    case "$d" in
+        "") ver=unknown ;;
+        *-*-g*) tag=${d%%-*} rest=${d#*-}; n=${rest%%-*}; h=${rest#*-g}
+                ver="$tag + $n unreleased change$([ "$n" = 1 ] || echo s) (${branch:-detached}, ${h%-dirty})"
+                case "$d" in *-dirty) ver="$ver, with local edits" ;; esac ;;
+        *)      ver=$d ;;
+    esac
     notify-send -a jerkarchy "jerkarchy $ver" "theme: $(get theme)
-source: ${src%/home}
+source: $repo
 settings: jerkarchy-set (CLI) or this menu
 bindings: Super+H"
 }
 
 while :; do
-    rows="$I_THEME  theme      $(get theme)${TAB}theme
-$I_WALL  wallpaper  $(get wall_contrast)× · $(get wall_fps) fps${TAB}wall
-$I_PROFILE  power      $("$bin/power-profile" get 2>/dev/null)${TAB}profile
-$I_WIFI  network${TAB}wifi
-$I_BT  bluetooth${TAB}bt
-$I_AUDIO  audio${TAB}audio"
+    # Grouped: how it looks, what it runs on, help. Headers do nothing.
+    rows="── look ──${TAB}hdr
+$I_THEME  theme       $(get theme)${TAB}theme
+$I_WALL  wallpaper   $(get wall_contrast)× · $(get wall_fps) fps${TAB}wall
+$I_SAVER  screensaver $(get saver_mode) · $(min_label saver_min) · lock $(min_label lock_min)${TAB}saver
+$I_FX  animations  slide $(ms_label slide_ms) · fade $(fx_label)${TAB}fx
+── system ──${TAB}hdr
+$I_PROFILE  power       $("$bin/power-profile" get 2>/dev/null)${TAB}profile
+$I_KEYS  keyboard    $(get kb_layout)${TAB}keyboard"
     command -v nwg-displays >/dev/null && rows="$rows
 $I_DISPLAY  displays${TAB}displays"
     rows="$rows
-$I_KEYS  keyboard   $(get kb_layout)${TAB}keyboard"
-    rows="$rows
+$I_WIFI  network${TAB}wifi
+$I_BT  bluetooth${TAB}bt
+$I_AUDIO  audio${TAB}audio
 $I_NOTIFY  notifications${TAB}notify
+── help ──${TAB}hdr
 $I_KEYS  keybindings${TAB}keys
 $I_SESSION  session${TAB}session
 $I_INFO  about${TAB}about"
 
-    choice=$(printf '%s\n' "$rows" | menu --prompt 'settings › ' --lines 14)
+    choice=$(printf '%s\n' "$rows" | menu --prompt 'settings › ' --lines 20 --select-index 1)
     case "$choice" in
+        hdr)      ;;
         theme)    theme_menu ;;
         wall)     wall_menu ;;
         profile)  profile_menu ;;
         keyboard) kb_menu ;;
+        saver)    saver_menu ;;
+        fx)       anim_menu ;;
         wifi)     exec "$bin/wifi-menu" ;;
         bt)       exec "$bin/bt-menu" ;;
         audio)    exec "$bin/audio-mixer" ;;

@@ -1,0 +1,17 @@
+# sway for the login screen (greetd runs it as the `greeter` user), written
+# by greeter-sync into /var/lib/jerkarchy/greeter. The live wallpaper behind
+# nwg-hello, the user's keyboard layout. Changes: jerkarchy-set, not here.
+input type:keyboard {
+    xkb_layout {{ .kb_layout }}
+{{- if .kb_variant }}
+    xkb_variant {{ .kb_variant }}
+{{- end }}
+{{- if .kb_options }}
+    xkb_options {{ .kb_options }}
+{{- end }}
+}
+seat * xcursor_theme Adwaita 24
+default_border none
+include /etc/sway/config.d/*
+exec env XDG_CONFIG_HOME=/var/lib/jerkarchy/greeter /var/lib/jerkarchy/greeter/bin/jerkwall
+exec "nwg-hello; swaymsg exit"

@@ -1,16 +1,16 @@
 # Roadmap
 
-Each line is a release (gitflow: `release/X.Y.Z` → PR into `main` → tag).
+Each line is a milestone; releases are cut when a batch is ready (v0.1.0 and v0.1.1 shipped the first three). Gitflow: `release/X.Y.Z` → `main` → tag.
 Tools marked ⚠ need a fashware audit (AGENTS.md §3) before they're adopted.
 Every release must pass the VM install test, not just "works on my laptop".
 
 | Release | Scope | Tools |
 |---|---|---|
 | **v0.1.0 — it installs** ✔ (released, with the themes, settings and notification menus below) | CI on every push (`sway -C`, `bash -n`/shellcheck, waybar JSON, Zig build); VM install test (fresh Arch → `install.sh` → working desktop); **snapshot pinning** (`SNAPSHOT` date → Arch Linux Archive mirror for CI, VM test and installs); fix known gaps: ~~launcher (`fuzzel.ini`) still has caelestia colours~~ (themed), ~~no default wallpaper~~ (jerkwall), machine-specific bits into templates | GitHub Actions, QEMU + archiso, shellcheck ⚠, Arch Linux Archive |
-| **v0.2.0 — themes** | ~~one palette → every config~~; ~~settings menu + `jerkarchy-set`~~; ~~48 themes (classics, flags, monochrome)~~; still to do: a parody of an Omarchy theme | chezmoi data + `.tmpl` (nothing new) |
-| **v0.3.0 — screensaver** | full-screen terminal effect before the idle lock; any key → lock | terminaltexteffects ⚠ (what Omarchy uses) or cmatrix/cbonsai ⚠ |
+| **themes** ✔ (shipped in v0.1.0/v0.1.1) | ~~one palette → every config~~; ~~settings menu + `jerkarchy-set`~~; ~~48 themes (classics, flags, monochrome)~~; still to do: a parody of an Omarchy theme | chezmoi data + `.tmpl` (nothing new) |
+| **screensaver** ✔ (shipped in v0.1.1) | ~~full-screen effect before the idle lock, any input ends it~~; ~~title + clock~~; modes: wallpaper, matrix, bonsai, city, galaxy, planets, three-body orbits, random | jerkwall + jerksaver (Zig, our own; no cmatrix/cbonsai/tte) |
 | **v0.4.0 — omakase profiles** | `install.sh --with docker,office,gaming,dev` | Docker ⚠, LibreOffice ⚠, Steam (Valve, clean), Neovim/VSCodium ⚠ |
-| **v0.5.0 — login screen** | themed login, VM-tested before it touches a real machine | greetd + tuigreet ⚠, or an SDDM theme |
+| **login + lock screens** ✔ (shipped in v0.1.1) | ~~themed login, VM-tested before it touches a real machine~~; ~~lock screen to match~~ | greetd + nwg-hello, gtklock |
 | **v0.6.0 — opt-in AI** | selection / screenshot / terminal assistant keys, "ask about this" in the notification menu, off by default, local models only | llama.cpp ⚠ |
 | **v0.7.0 — updates** | `jerkarchy-update` = pull + `chezmoi apply` + rebuild helpers; **automatic snapshot bumps** (below) | chezmoi, GitHub Actions |
 | **v1.0.0 — ISO** | net-install ISO (< 2 GB) built in Actions, attached to a GitHub Release, installs jerkarchy on first boot | archiso |
