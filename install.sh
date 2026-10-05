@@ -85,7 +85,8 @@ electronics	arduino-cli
 TABLE
 )
 # Remembered profiles plus the ones asked for now.
-PROFILE_LIST=$(printf '%s\n' $PROFILES_SAVED "${WITH//,/$'\n'}" | grep -v '^$' | sort -u)
+# (grep finds nothing without profiles: that's fine, not an error)
+PROFILE_LIST=$(printf '%s\n' $PROFILES_SAVED "${WITH//,/$'\n'}" | { grep -v '^$' || true; } | sort -u)
 for p in $PROFILE_LIST; do
     printf '%s\n' "$PROFILES" | cut -f1 | grep -qx "$p" || { echo "unknown profile: $p (dev docker office gaming browsers creator electronics)" >&2; exit 2; }
 done
