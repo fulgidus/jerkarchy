@@ -197,6 +197,11 @@ PICK=1 nm 3 && ! grep -q dismiss "$NS/rows" && ok "history entry: copy only, no 
 step "install.sh profiles (dry run: nothing installed)"
 IH="$TMP/inst-home"; mkdir -p "$IH"
 dry() { HOME="$IH" XDG_CONFIG_HOME="$IH/.config" JERKARCHY_DRY_RUN=1 bash install.sh "$@" 2>&1; }
+# A plain install (no profiles, nothing saved) must get through: v0.1.3 died
+# here silently (grep matching nothing under pipefail).
+if out=$(dry) && printf '%s\n' "$out" | grep -qx 'package: waybar'; then
+    ok "plain install (no profiles) resolves"
+else bad "plain install (no profiles)"; printf '%s\n' "$out" | sed 's/^/        /' | tail -5; fi
 out=$(dry --with dev,office)
 if printf '%s\n' "$out" | grep -qx 'package: helix' && printf '%s\n' "$out" | grep -qx 'package: neovim' &&
         printf '%s\n' "$out" | grep -q '^flagged: libreoffice-fresh:.*gnumeric' && ! printf '%s\n' "$out" | grep -qx 'package: steam'; then
